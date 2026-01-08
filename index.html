@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Generatore Pass PDF - Parcheggi 25-26</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -170,7 +170,6 @@
         <div class="form-group">
             <label for="excelFile">📊 File Excel (Parcheggi-25-26.xlsx)</label>
             <input type="file" id="excelFile" accept=".xlsx,.xls" required>
-            <div class="file-info" id="fileInfo"></div>
             <div class="sheet-selector" id="sheetSelector">
                 <label for="sheetSelect">Seleziona il foglio:</label>
                 <select id="sheetSelect"></select>
@@ -209,28 +208,51 @@
     </div>
 
     <script>
-        const { PDFDocument, rgb } = PDFLib;
+        // Aspetta che le librerie siano caricate
+        window.addEventListener('load', function() {
+            if (typeof XLSX === 'undefined') {
+                document.getElementById('debugInfo').style.display = 'block';
+                document.getElementById('debugInfo').innerHTML = '❌ Errore: Libreria Excel non caricata. Ricarica la pagina.';
+                return;
+            }
+            if (typeof PDFLib === 'undefined') {
+                document.getElementById('debugInfo').style.display = 'block';
+                document.getElementById('debugInfo').innerHTML = '❌ Errore: Libreria PDF non caricata. Ricarica la pagina.';
+                return;
+            }
+            initApp();
+        });
 
-        let excelData = null;
-        let workbook = null;
-        let pdfBytes = null;
+        function initApp() {
+            const { PDFDocument, rgb } = PDFLib;
+
+            let excelData = null;
+            let workbook = null;
+            let pdfBytes = null;
 
         document.getElementById('excelFile').addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
             
+            const debugInfo = document.getElementById('debugInfo');
+            debugInfo.style.display = 'block';
+            debugInfo.innerHTML = '⏳ Caricamento Excel in corso...';
+            
             const reader = new FileReader();
             reader.onload = (event) => {
                 try {
+                    if (typeof XLSX === 'undefined') {
+                        debugInfo.innerHTML = '❌ Libreria XLSX non disponibile. Ricarica la pagina.';
+                        return;
+                    }
+                    
                     workbook = XLSX.read(event.target.result, { type: 'binary' });
                     
                     const sheetNames = workbook.SheetNames;
-                    const fileInfo = document.getElementById('fileInfo');
                     const sheetSelector = document.getElementById('sheetSelector');
                     const sheetSelect = document.getElementById('sheetSelect');
                     
-                    fileInfo.style.display = 'block';
-                    fileInfo.textContent = `✅ Excel caricato: ${file.name} | Fogli trovati: ${sheetNames.length}`;
+                    debugInfo.innerHTML = `✅ Excel caricato: <strong>${file.name}</strong><br>📑 Fogli disponibili: <strong>${sheetNames.join(', ')}</strong>`;
                     
                     // Mostra selettore fogli
                     sheetSelector.style.display = 'block';
@@ -248,25 +270,29 @@
                     // Rimuovi listener precedenti e aggiungi nuovo
                     const newSelect = sheetSelect.cloneNode(true);
                     sheetSelect.parentNode.replaceChild(newSelect, sheetSelect);
-                    newSelect.addEventListener('change', (e) => {
+                    document.getElementById('sheetSelect').addEventListener('change', (e) => {
                         loadSheet(e.target.value);
                     });
                     
                 } catch (error) {
-                    showError('Errore nella lettura del file Excel: ' + error.message);
-                    console.error(error);
+                    debugInfo.innerHTML = `❌ Errore: ${error.message}`;
+                    console.error('Errore lettura Excel:', error);
                 }
             };
             reader.onerror = (error) => {
-                showError('Errore nel caricamento del file: ' + error);
+                debugInfo.innerHTML = `❌ Errore nel caricamento del file`;
+                console.error('Errore FileReader:', error);
             };
             reader.readAsBinaryString(file);
         });
 
         function loadSheet(sheetName) {
+            const debugInfo = document.getElementById('debugInfo');
+            
             try {
                 if (!workbook || !workbook.Sheets[sheetName]) {
-                    showError('Foglio non trovato: ' + sheetName);
+                    debugInfo.innerHTML = `❌ Foglio "${sheetName}" non trovato`;
+                    excelData = null;
                     return;
                 }
                 
@@ -277,43 +303,45 @@
                     blankrows: false
                 });
                 
-                const debugInfo = document.getElementById('debugInfo');
-                debugInfo.style.display = 'block';
-                
                 if (excelData.length === 0) {
-                    debugInfo.innerHTML = `⚠️ Foglio "${sheetName}" vuoto o senza intestazioni`;
+                    debugInfo.innerHTML = `⚠️ Foglio "<strong>${sheetName}</strong>" è vuoto o senza intestazioni nella prima riga`;
                     excelData = null;
                     return;
                 }
                 
                 // Mostra info debug
                 const columns = Object.keys(excelData[0]);
+                const validRows = excelData.filter(row => {
+                    const hasAzienda = findColumnValue(row, ['AZIENDA', 'Azienda', 'azienda', 'SPONSOR', 'Sponsor']);
+                    const hasNumero = findColumnValue(row, ['NUMERO', 'Numero', 'numero', 'NUM', 'N']);
+                    return hasAzienda && hasNumero;
+                });
+                
                 const preview = excelData.slice(0, 3).map((row, i) => {
-                    const rowData = {};
-                    columns.forEach(col => {
-                        rowData[col] = row[col];
-                    });
-                    return `Riga ${i + 1}: ${JSON.stringify(rowData)}`;
+                    const azienda = findColumnValue(row, ['AZIENDA', 'Azienda', 'azienda', 'SPONSOR', 'Sponsor']) || '❌';
+                    const numero = findColumnValue(row, ['NUMERO', 'Numero', 'numero', 'NUM', 'N']) || '❌';
+                    return `${i + 1}. Azienda: <strong>${azienda}</strong> | Numero: <strong>${numero}</strong>`;
                 }).join('<br>');
                 
                 debugInfo.innerHTML = `
-                    ✅ Foglio caricato: <strong>${sheetName}</strong><br>
-                    📊 Righe trovate: <strong>${excelData.length}</strong><br>
-                    📋 Colonne: <strong>${columns.join(', ')}</strong><br>
-                    <hr style="margin: 8px 0;">
-                    <strong>Anteprima dati:</strong><br>
+                    ✅ Foglio: <strong>${sheetName}</strong><br>
+                    📊 Righe totali: <strong>${excelData.length}</strong> | Righe valide: <strong>${validRows.length}</strong><br>
+                    📋 Colonne trovate: <strong>${columns.join(', ')}</strong><br>
+                    <hr style="margin: 8px 0; border: none; border-top: 1px solid #ddd;">
+                    <strong>Prime 3 righe:</strong><br>
                     ${preview}
                 `;
                 
-                console.log('Excel caricato:', {
+                console.log('✅ Excel caricato con successo:', {
                     foglio: sheetName,
-                    righe: excelData.length,
+                    righeTotali: excelData.length,
+                    righeValide: validRows.length,
                     colonne: columns,
                     primaRiga: excelData[0]
                 });
                 
             } catch (error) {
-                showError('Errore nel caricamento del foglio: ' + error.message);
+                debugInfo.innerHTML = `❌ Errore: ${error.message}`;
                 console.error('Errore loadSheet:', error);
                 excelData = null;
             }
@@ -325,9 +353,9 @@
                 const reader = new FileReader();
                 reader.onload = (event) => {
                     pdfBytes = new Uint8Array(event.target.result);
-                    const fileInfo = document.getElementById('fileInfo');
-                    fileInfo.style.display = 'block';
-                    fileInfo.textContent += ` | ✅ PDF: ${file.name}`;
+                    const debugInfo = document.getElementById('debugInfo');
+                    const currentText = debugInfo.innerHTML;
+                    debugInfo.innerHTML = currentText + `<br>✅ PDF Template caricato: <strong>${file.name}</strong>`;
                 };
                 reader.readAsArrayBuffer(file);
             }
@@ -482,6 +510,7 @@
             workbook = null;
             pdfBytes = null;
         });
+        } // Fine initApp
     </script>
 </body>
 </html>
