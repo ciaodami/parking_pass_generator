@@ -6,7 +6,6 @@
     <title>Generatore Pass PDF - Parcheggi 25-26</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -48,7 +47,7 @@
         }
         input[type="file"],
         input[type="text"],
-        input[type="date"] {
+        select {
             width: 100%;
             padding: 12px;
             border: 2px solid #e0e0e0;
@@ -56,7 +55,7 @@
             font-size: 14px;
             transition: border-color 0.3s;
         }
-        input:focus {
+        input:focus, select:focus {
             outline: none;
             border-color: #667eea;
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
@@ -138,13 +137,28 @@
             display: block;
         }
         .file-info {
-            margin-top: 15px;
+            margin-top: 10px;
             padding: 12px;
             background: #f5f5f5;
             border-radius: 6px;
             font-size: 12px;
             color: #666;
             display: none;
+        }
+        .sheet-selector {
+            margin-top: 10px;
+            display: none;
+        }
+        .debug-info {
+            margin-top: 10px;
+            padding: 10px;
+            background: #fff3cd;
+            border-radius: 6px;
+            font-size: 11px;
+            color: #856404;
+            display: none;
+            max-height: 200px;
+            overflow-y: auto;
         }
     </style>
 </head>
@@ -157,6 +171,11 @@
             <label for="excelFile">📊 File Excel (Parcheggi-25-26.xlsx)</label>
             <input type="file" id="excelFile" accept=".xlsx,.xls" required>
             <div class="file-info" id="fileInfo"></div>
+            <div class="sheet-selector" id="sheetSelector">
+                <label for="sheetSelect">Seleziona il foglio:</label>
+                <select id="sheetSelect"></select>
+            </div>
+            <div class="debug-info" id="debugInfo"></div>
         </div>
 
         <div class="form-group">
@@ -190,18 +209,87 @@
     </div>
 
     <script>
-        const { PDFDocument } = PDFLib;
+        const { PDFDocument, rgb } = PDFLib;
 
-        let excelFile = null;
+        let excelData = null;
+        let workbook = null;
         let pdfBytes = null;
 
         document.getElementById('excelFile').addEventListener('change', (e) => {
-            excelFile = e.target.files[0];
-            if (excelFile) {
-                document.getElementById('fileInfo').style.display = 'block';
-                document.getElementById('fileInfo').textContent = `✅ Excel caricato: ${excelFile.name}`;
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        workbook = XLSX.read(new Uint8Array(event.target.result), { type: 'array' });
+                        
+                        const sheetNames = workbook.SheetNames;
+                        const fileInfo = document.getElementById('fileInfo');
+                        const sheetSelector = document.getElementById('sheetSelector');
+                        const sheetSelect = document.getElementById('sheetSelect');
+                        const debugInfo = document.getElementById('debugInfo');
+                        
+                        fileInfo.style.display = 'block';
+                        fileInfo.textContent = `✅ Excel caricato: ${file.name} | Fogli trovati: ${sheetNames.length}`;
+                        
+                        // Mostra selettore fogli
+                        sheetSelector.style.display = 'block';
+                        sheetSelect.innerHTML = '';
+                        sheetNames.forEach(name => {
+                            const option = document.createElement('option');
+                            option.value = name;
+                            option.textContent = name;
+                            sheetSelect.appendChild(option);
+                        });
+                        
+                        // Carica automaticamente il primo foglio
+                        loadSheet(sheetNames[0]);
+                        
+                        // Listener per cambio foglio
+                        sheetSelect.addEventListener('change', (e) => {
+                            loadSheet(e.target.value);
+                        });
+                        
+                    } catch (error) {
+                        showError('Errore nella lettura del file Excel: ' + error.message);
+                    }
+                };
+                reader.readAsArrayBuffer(file);
             }
         });
+
+        function loadSheet(sheetName) {
+            try {
+                const worksheet = workbook.Sheets[sheetName];
+                excelData = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+                
+                const debugInfo = document.getElementById('debugInfo');
+                debugInfo.style.display = 'block';
+                
+                if (excelData.length === 0) {
+                    debugInfo.innerHTML = `⚠️ Foglio "${sheetName}" vuoto o senza intestazioni`;
+                    return;
+                }
+                
+                // Mostra info debug
+                const columns = Object.keys(excelData[0]);
+                const preview = excelData.slice(0, 3).map((row, i) => {
+                    return `Riga ${i + 1}: ${JSON.stringify(row)}`;
+                }).join('<br>');
+                
+                debugInfo.innerHTML = `
+                    ✅ Foglio caricato: <strong>${sheetName}</strong><br>
+                    📊 Righe trovate: <strong>${excelData.length}</strong><br>
+                    📋 Colonne: <strong>${columns.join(', ')}</strong><br>
+                    <hr style="margin: 8px 0;">
+                    <strong>Anteprima dati:</strong><br>
+                    ${preview}
+                `;
+                
+            } catch (error) {
+                showError('Errore nel caricamento del foglio: ' + error.message);
+            }
+        }
 
         document.getElementById('pdfFile').addEventListener('change', (e) => {
             const file = e.target.files[0];
@@ -209,8 +297,9 @@
                 const reader = new FileReader();
                 reader.onload = (event) => {
                     pdfBytes = new Uint8Array(event.target.result);
-                    document.getElementById('fileInfo').style.display = 'block';
-                    document.getElementById('fileInfo').textContent = `✅ PDF caricato: ${file.name}`;
+                    const fileInfo = document.getElementById('fileInfo');
+                    fileInfo.style.display = 'block';
+                    fileInfo.textContent += ` | ✅ PDF: ${file.name}`;
                 };
                 reader.readAsArrayBuffer(file);
             }
@@ -224,11 +313,8 @@
             const partita = document.getElementById('partita').value;
             const data = document.getElementById('data').value;
 
-            if (!excelFile || !pdfBytes || !partita || !data) {
-                statusEl.classList.remove('success', 'error');
-                statusEl.classList.add('error');
-                statusEl.textContent = '⚠️ Completa tutti i campi!';
-                statusEl.style.display = 'block';
+            if (!excelData || !pdfBytes || !partita || !data) {
+                showError('⚠️ Completa tutti i campi!');
                 return;
             }
 
@@ -237,106 +323,122 @@
                 progressEl.style.display = 'block';
                 statusEl.style.display = 'none';
 
-                // Leggi Excel
-                const reader = new FileReader();
-                reader.onload = async (event) => {
-                    try {
-                        const workbook = XLSX.read(new Uint8Array(event.target.result), { type: 'array' });
-                        const worksheet = workbook.Sheets['Foglio2'];
-                        const data_sponsors = XLSX.utils.sheet_to_json(worksheet);
+                let generated = 0;
+                const errors = [];
 
-                        let generated = 0;
+                for (let i = 0; i < excelData.length; i++) {
+                    const row = excelData[i];
+                    
+                    // Cerca le colonne in modo flessibile
+                    const azienda = findColumnValue(row, ['AZIENDA', 'Azienda', 'azienda', 'SPONSOR', 'Sponsor']);
+                    const numero = findColumnValue(row, ['NUMERO', 'Numero', 'numero', 'NUM', 'N']);
+                    const passNum = findColumnValue(row, ['PASS', 'Pass', 'pass']);
 
-                        for (let i = 0; i < data_sponsors.length; i++) {
-                            const row = data_sponsors[i];
-                            const azienda = String(row.AZIENDA).trim();
-                            const passNum = String(row.PASS).trim();
-                            const numero = String(row.NUMERO).trim();
-
-                            if (!azienda || !numero) continue;
-
-                            // Carica PDF template
-                            const pdfDoc = await PDFDocument.load(pdfBytes);
-                            const pages = pdfDoc.getPages();
-                            const page = pages[0];
-
-                            const fontSize = 11;
-                            const fontColor = PDFLib.rgb(0, 0, 0);
-
-                            // ⚠️ COORDINATE FORNITE - REGOLA PER IL TUO PDF
-                            // Sponsor (al posto di ILFER)
-                            page.drawText(azienda, {
-                                x: 95,
-                                y: 555,
-                                size: fontSize,
-                                color: fontColor,
-                            });
-
-                            // Numero Pass
-                            page.drawText(numero, {
-                                x: 480,
-                                y: 485,
-                                size: fontSize,
-                                color: fontColor,
-                            });
-
-                            // Partita (a destra di GARA)
-                            page.drawText(partita, {
-                                x: 350,
-                                y: 195,
-                                size: fontSize,
-                                color: fontColor,
-                            });
-
-                            // Data (a destra di DATA)
-                            page.drawText(data, {
-                                x: 350,
-                                y: 155,
-                                size: fontSize,
-                                color: fontColor,
-                            });
-
-                            // Salva PDF
-                            const pdfFile = await pdfDoc.save();
-                            const blob = new Blob([pdfFile], { type: 'application/pdf' });
-                            const url = URL.createObjectURL(blob);
-                            const link = document.createElement('a');
-                            link.href = url;
-                            link.download = `${numero} - ${azienda}.pdf`;
-                            link.click();
-                            URL.revokeObjectURL(url);
-
-                            generated++;
-                            const percent = (generated / data_sponsors.length) * 100;
-                            progressFill.style.width = percent + '%';
-                            statusInfo.textContent = `${generated} / ${data_sponsors.length} PDF generati...`;
-                        }
-
-                        statusEl.classList.remove('error');
-                        statusEl.classList.add('success');
-                        statusEl.textContent = `✅ ${generated} PDF generati con successo!`;
-                        statusEl.style.display = 'block';
-                        progressEl.style.display = 'none';
-
-                    } catch (error) {
-                        statusEl.classList.remove('success');
-                        statusEl.classList.add('error');
-                        statusEl.textContent = '❌ Errore: ' + error.message;
-                        statusEl.style.display = 'block';
-                    } finally {
-                        document.getElementById('generateBtn').disabled = false;
+                    if (!azienda || !numero) {
+                        errors.push(`Riga ${i + 1}: dati mancanti (Azienda: "${azienda}", Numero: "${numero}")`);
+                        continue;
                     }
-                };
-                reader.readAsArrayBuffer(excelFile);
+
+                    try {
+                        // Carica PDF template
+                        const pdfDoc = await PDFDocument.load(pdfBytes);
+                        const pages = pdfDoc.getPages();
+                        const page = pages[0];
+
+                        const fontSize = 11;
+                        const fontColor = rgb(0, 0, 0);
+
+                        // Sponsor
+                        page.drawText(String(azienda), {
+                            x: 95,
+                            y: 555,
+                            size: fontSize,
+                            color: fontColor,
+                        });
+
+                        // Numero Pass
+                        page.drawText(String(numero), {
+                            x: 480,
+                            y: 485,
+                            size: fontSize,
+                            color: fontColor,
+                        });
+
+                        // Partita
+                        page.drawText(partita, {
+                            x: 350,
+                            y: 195,
+                            size: fontSize,
+                            color: fontColor,
+                        });
+
+                        // Data
+                        page.drawText(data, {
+                            x: 350,
+                            y: 155,
+                            size: fontSize,
+                            color: fontColor,
+                        });
+
+                        // Salva PDF
+                        const pdfFile = await pdfDoc.save();
+                        const blob = new Blob([pdfFile], { type: 'application/pdf' });
+                        const url = URL.createObjectURL(blob);
+                        const link = document.createElement('a');
+                        link.href = url;
+                        link.download = `${numero} - ${azienda}.pdf`;
+                        link.click();
+                        URL.revokeObjectURL(url);
+
+                        generated++;
+                        
+                        // Aggiorna progress
+                        const percent = ((i + 1) / excelData.length) * 100;
+                        progressFill.style.width = percent + '%';
+                        statusInfo.textContent = `${generated} / ${excelData.length} PDF generati... (${Math.round(percent)}%)`;
+                        
+                        // Piccola pausa per non bloccare il browser
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                        
+                    } catch (pdfError) {
+                        errors.push(`Riga ${i + 1} (${azienda}): ${pdfError.message}`);
+                    }
+                }
+
+                statusEl.classList.remove('error');
+                statusEl.classList.add('success');
+                let message = `✅ ${generated} PDF generati con successo!`;
+                if (errors.length > 0) {
+                    message += `\n⚠️ ${errors.length} errori: ${errors.slice(0, 3).join('; ')}`;
+                    if (errors.length > 3) message += ` ... e altri ${errors.length - 3}`;
+                }
+                statusEl.textContent = message;
+                statusEl.style.display = 'block';
+                progressEl.style.display = 'none';
 
             } catch (error) {
-                statusEl.classList.remove('success');
-                statusEl.classList.add('error');
-                statusEl.textContent = '❌ Errore: ' + error.message;
-                statusEl.style.display = 'block';
+                showError('❌ Errore: ' + error.message);
+            } finally {
                 document.getElementById('generateBtn').disabled = false;
             }
         });
+
+        function findColumnValue(row, possibleNames) {
+            for (let name of possibleNames) {
+                if (row[name] !== undefined && row[name] !== null && row[name] !== '') {
+                    return String(row[name]).trim();
+                }
+            }
+            return null;
+        }
+
+        function showError(message) {
+            const statusEl = document.getElementById('status');
+            statusEl.classList.remove('success');
+            statusEl.classList.add('error');
+            statusEl.textContent = message;
+            statusEl.style.display = 'block';
+        }
 
         document.getElementById('resetBtn').addEventListener('click', () => {
             document.getElementById('excelFile').value = '';
@@ -344,9 +446,12 @@
             document.getElementById('partita').value = '';
             document.getElementById('data').value = '';
             document.getElementById('fileInfo').style.display = 'none';
+            document.getElementById('sheetSelector').style.display = 'none';
+            document.getElementById('debugInfo').style.display = 'none';
             document.getElementById('progress').style.display = 'none';
             document.getElementById('status').style.display = 'none';
-            excelFile = null;
+            excelData = null;
+            workbook = null;
             pdfBytes = null;
         });
     </script>
