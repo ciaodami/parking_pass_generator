@@ -196,12 +196,12 @@
 
         <div class="form-group">
             <label>🎯 Partita</label>
-            <input type="text" id="partita" placeholder="Cremonese-Verona" value="Cremonese-Verona">
+            <input type="text" id="partita" placeholder="Cremonese-AVVERSARIO" value="Cremonese-Verona">
         </div>
 
         <div class="form-group">
             <label>📅 Data</label>
-            <input type="text" id="dataPartita" placeholder="19/01/2026" value="19/01/2026">
+            <input type="text" id="dataPartita" placeholder="MM/DD/YYYY"" value="date">
         </div>
 
         <div class="button-group">
@@ -316,16 +316,16 @@
         ctx.fillStyle = '#000';
         ctx.font = `bold ${45 * scale}px Helvetica`;
 
-        // GARA (x: 320, y: 1695 dall'alto)
+        // GARA (x: 600, y: 1065 dall'alto)
         ctx.fillText(partita, 320 * scale, canvas.height - (1695 * scale));
 
-        // DATA (x: 92, y: 1540 dall'alto)
+        // DATA (x: 600, y: 1085 dall'alto)
         ctx.fillText(data, 92 * scale, canvas.height - (1540 * scale));
 
-        // PASS (x: 602, y: 1540 dall'alto)
+        // PASS (x: 1500, y: 1085 dall'alto)
         ctx.fillText(primoPass, 602 * scale, canvas.height - (1540 * scale));
 
-        // NOME (x: 320, y: 1360 dall'alto)
+        // NOME (x: 730, y: 1050 dall'alto)
         ctx.fillText(primoSponsor, 320 * scale, canvas.height - (1360 * scale));
     }
 
@@ -458,6 +458,7 @@
 
 </body>
 </html>
+
 
 
 
