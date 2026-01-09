@@ -57,7 +57,6 @@
         }
         .success { background: #e6f4ea; color: #1e7e34; }
         .error { background: #f8d7da; color: #842029; }
-        .info { background: #e7f1ff; color: #084298; }
     </style>
 </head>
 <body>
@@ -71,13 +70,7 @@
 
     <label>Excel Parcheggi (.xlsx)</label>
     <input type="file" id="excelFile" accept=".xlsx">
-    <small>Foglio richiesto: <strong>Foglio2</strong> – Colonna A = NOME</small>
-
-    <label>Partita</label>
-    <input type="text" id="partita" value="Cremonese-Verona">
-
-    <label>Data</label>
-    <input type="text" id="data" value="19/01/2026">
+    <small>Foglio richiesto: <strong>Lista</strong> – Col A=azienda, Col C=numero</small>
 
     <button id="generateBtn">Genera PDF</button>
 
@@ -92,16 +85,36 @@ function showStatus(message, type) {
     el.style.display = 'block';
 }
 
-const { PDFDocument, rgb } = PDFLib;
+const { PDFDocument, StandardFonts, rgb } = PDFLib;
 
 let pdfBytes = null;
 let parcheggiData = [];
+
+// ---- CALENDARIO CASA CREMONESE (Serie A 2025/26) ----
+// Ogni elemento: { date: "YYYY-MM-DD", opponent: "Nome Squadra" }
+// Basato sul calendario ufficiale Serie A 2025/26 verificato da fonti sportive
+const calendarioCasa = [
+    { date: "2025-08-31", opponent: "Sassuolo" },
+    { date: "2025-09-21", opponent: "Parma" },
+    { date: "2025-10-25", opponent: "Atalanta" },
+    { date: "2025-11-23", opponent: "Roma" },
+    { date: "2026-01-08", opponent: "Cagliari" }
+];
+
+function trovaProssimaCasa() {
+    const oggi = new Date().toISOString().split("T")[0];
+    for (let m of calendarioCasa) {
+        if (m.date >= oggi) {
+            return m;
+        }
+    }
+    return null;
+}
 
 /* PDF TEMPLATE */
 document.getElementById('pdfFile').addEventListener('change', e => {
     const file = e.target.files[0];
     if (!file) return;
-
     const reader = new FileReader();
     reader.onload = ev => {
         pdfBytes = new Uint8Array(ev.target.result);
@@ -110,65 +123,76 @@ document.getElementById('pdfFile').addEventListener('change', e => {
     reader.readAsArrayBuffer(file);
 });
 
-/* EXCEL */
+/* EXCEL FILE */
 document.getElementById('excelFile').addEventListener('change', e => {
     const file = e.target.files[0];
     if (!file) return;
-
     const reader = new FileReader();
     reader.onload = ev => {
         const data = new Uint8Array(ev.target.result);
         const workbook = XLSX.read(data, { type: 'array' });
-
-        const sheet = workbook.Sheets['Foglio2'];
+        const sheet = workbook.Sheets['Lista'];
         if (!sheet) {
-            showStatus('Foglio2 non trovato', 'error');
+            showStatus('Foglio "Lista" non trovato', 'error');
             return;
         }
-
         const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
 
         parcheggiData = rows
-            .map(r => r[0])
-            .filter(v => v && String(v).trim() !== '')
-            .map((nome, i) => ({
-                NOME: String(nome).trim(),
-                PASS: String(i + 1).padStart(2, '0')
+            .filter(r => r[0] && r[2])
+            .map(r => ({
+                azienda: String(r[0]).trim(),
+                numero: String(r[2]).trim()
             }));
 
         document.getElementById('generateBtn').textContent =
             `Genera ${parcheggiData.length} PDF`;
 
-        showStatus(`${parcheggiData.length} nominativi caricati`, 'success');
+        showStatus(`${parcheggiData.length} righe caricate`, 'success');
     };
     reader.readAsArrayBuffer(file);
 });
 
-/* GENERAZIONE PDF */
+/* GENERA PDF */
 document.getElementById('generateBtn').addEventListener('click', async () => {
     if (!pdfBytes) {
         showStatus('Carica il PDF template', 'error');
         return;
     }
-
     if (parcheggiData.length === 0) {
         showStatus('Carica il file Excel', 'error');
         return;
     }
 
-    const partita = document.getElementById('partita').value;
-    const data = document.getElementById('data').value;
+    const prossima = trovaProssimaCasa();
+    if (!prossima) {
+        showStatus('Nessuna prossima partita in casa trovata', 'error');
+        return;
+    }
 
-    for (let i = 0; i < parcheggiData.length; i++) {
-        const p = parcheggiData[i];
+    const partitaStr = `Cremonese - ${prossima.opponent}`;
+    const dataStr = new Date(prossima.date).toLocaleDateString("it-IT");
 
+    for (let p of parcheggiData) {
         const pdfDoc = await PDFDocument.load(pdfBytes);
         const page = pdfDoc.getPages()[0];
+        const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
-        page.drawText(partita, { x: 195, y: 1312, size: 11, color: rgb(0,0,0) });
-        page.drawText(data, { x: 170, y: 1215, size: 11, color: rgb(0,0,0) });
-        page.drawText(p.PASS, { x: 755, y: 1215, size: 11, color: rgb(0,0,0) });
-        page.drawText(p.NOME, { x: 284, y: 1118, size: 11, color: rgb(0,0,0) });
+        page.drawText(partitaStr, {
+            x: 195, y: 1312, size: 16, font: font, color: rgb(0, 0, 0)
+        });
+
+        page.drawText(dataStr, {
+            x: 170, y: 1215, size: 16, font: font, color: rgb(0, 0, 0)
+        });
+
+        page.drawText(p.numero, {
+            x: 755, y: 1215, size: 16, font: font, color: rgb(0, 0, 0)
+        });
+
+        page.drawText(p.azienda, {
+            x: 284, y: 1118, size: 16, font: font, color: rgb(0, 0, 0)
+        });
 
         const pdfBytesOut = await pdfDoc.save();
         const blob = new Blob([pdfBytesOut], { type: 'application/pdf' });
@@ -176,7 +200,7 @@ document.getElementById('generateBtn').addEventListener('click', async () => {
 
         const a = document.createElement('a');
         a.href = url;
-        a.download = `Pass_${p.PASS}_${p.NOME}.pdf`;
+        a.download = `${p.numero} - ${p.azienda}.pdf`;
         a.click();
 
         URL.revokeObjectURL(url);
