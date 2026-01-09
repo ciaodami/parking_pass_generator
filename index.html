@@ -236,73 +236,8 @@
 
         <h2 style="margin-top: 30px;">🎯 Coordinate Testi</h2>
 
-        <div class="coord-controls">
-            <div>
-                <label>Gara X</label>
-                <input type="number" id="garaX" value="320" step="5">
-                <small>Sinistra</small>
-            </div>
-            <div>
-                <label>Gara Y</label>
-                <input type="number" id="garaY" value="1695" step="5">
-                <small>Da basso</small>
-            </div>
-            <div>
-                <label>Gara Font</label>
-                <input type="number" id="garaFont" value="32" min="12" max="48" step="1">
-                <small>⚠️ Bold</small>
-            </div>
-        </div>
-
-        <div class="coord-controls">
-            <div>
-                <label>Data X</label>
-                <input type="number" id="dataX" value="92" step="5">
-            </div>
-            <div>
-                <label>Data Y</label>
-                <input type="number" id="dataY" value="1540" step="5">
-            </div>
-            <div>
-                <label>Data Font</label>
-                <input type="number" id="dataFont" value="24" min="12" max="36" step="1">
-            </div>
-        </div>
-
-        <div class="coord-controls">
-            <div>
-                <label>N. Pass X</label>
-                <input type="number" id="passX" value="602" step="5">
-            </div>
-            <div>
-                <label>N. Pass Y</label>
-                <input type="number" id="passY" value="1540" step="5">
-            </div>
-            <div>
-                <label>N. Pass Font</label>
-                <input type="number" id="passFont" value="24" min="12" max="36" step="1">
-            </div>
-        </div>
-
-        <div class="coord-controls">
-            <div>
-                <label>Nominativo X</label>
-                <input type="number" id="nominativoX" value="320" step="5">
-            </div>
-            <div>
-                <label>Nominativo Y</label>
-                <input type="number" id="nominativoY" value="1360" step="5">
-            </div>
-            <div>
-                <label>Nominativo Font</label>
-                <input type="number" id="nominativoFont" value="32" min="12" max="48" step="1">
-            </div>
-        </div>
-</parameter>
-
-        <div class="preset-buttons">
-            <button class="btn-secondary" onclick="savePreset()">💾 Salva Preset</button>
-            <button class="btn-secondary" onclick="loadPreset()">📂 Carica Preset</button>
+        <div style="padding: 15px; background: #fff3cd; border-radius: 8px; margin-bottom: 20px; font-size: 12px; color: #856404;">
+            ⚠️ <strong>Coordinate fisse:</strong> Non modificabili - Sistema calibrato su template
         </div>
 
         <div class="button-group">
@@ -416,20 +351,21 @@
 
         ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
 
-        // Draw text overlays
+        // Draw text overlays con font size 90
         ctx.fillStyle = '#000';
-        ctx.font = `bold ${parseInt(document.getElementById('garaFont').value) / 2}px Helvetica`;
-        ctx.fillText('GARA', parseInt(document.getElementById('garaX').value) / 2, canvas.height - parseInt(document.getElementById('garaY').value) / 2);
+        ctx.font = `bold 45px Helvetica`;
+        ctx.fillText('GARA', 320 / 2, canvas.height - 1695 / 2);
 
-        ctx.font = `bold ${parseInt(document.getElementById('dataFont').value) / 2}px Helvetica`;
-        ctx.fillText('DATA', parseInt(document.getElementById('dataX').value) / 2, canvas.height - parseInt(document.getElementById('dataY').value) / 2);
+        ctx.font = `bold 45px Helvetica`;
+        ctx.fillText('DATA', 92 / 2, canvas.height - 1540 / 2);
 
-        ctx.font = `bold ${parseInt(document.getElementById('passFont').value) / 2}px Helvetica`;
-        ctx.fillText('PASS', parseInt(document.getElementById('passX').value) / 2, canvas.height - parseInt(document.getElementById('passY').value) / 2);
+        ctx.font = `bold 45px Helvetica`;
+        ctx.fillText('PASS', 602 / 2, canvas.height - 1540 / 2);
 
-        ctx.font = `bold ${parseInt(document.getElementById('nominativoFont').value) / 2}px Helvetica`;
-        ctx.fillText('NOME', parseInt(document.getElementById('nominativoX').value) / 2, canvas.height - parseInt(document.getElementById('nominativoY').value) / 2);
-</parameter>
+        // Mostra primo nome da Excel
+        const firstNome = parcheggiData.length > 0 ? parcheggiData[0].azienda : 'NOME';
+        ctx.font = `bold 45px Helvetica`;
+        ctx.fillText(firstNome, 320 / 2, canvas.height - 1360 / 2);
 
         // Update overlay positions
         updateOverlayPositions();
@@ -439,15 +375,18 @@
         const canvas = document.getElementById('previewCanvas');
         if (!canvas.offsetParent) return;
 
-        Object.entries(fields).forEach(([field, config]) => {
-            const overlay = document.getElementById(config.overlayId);
-            const x = parseInt(document.getElementById(config.xId).value);
-            const y = parseInt(document.getElementById(config.yId).value);
-            const fontSize = parseInt(document.getElementById(config.fontId).value);
+        const coords = {
+            gara: { x: 320, y: 1695, fontSize: 90 },
+            data: { x: 92, y: 1540, fontSize: 90 },
+            pass: { x: 602, y: 1540, fontSize: 90 },
+            nominativo: { x: 320, y: 1360, fontSize: 90 }
+        };
 
-            overlay.style.left = (x / 2) + 'px';
-            overlay.style.top = (canvas.height - y / 2) + 'px';
-            overlay.style.fontSize = (fontSize / 2) + 'px';
+        Object.entries(coords).forEach(([field, coord]) => {
+            const overlay = document.getElementById(fields[field].overlayId);
+            overlay.style.left = (coord.x / 2) + 'px';
+            overlay.style.top = (canvas.height - coord.y / 2) + 'px';
+            overlay.style.fontSize = (coord.fontSize / 2) + 'px';
             overlay.style.display = 'block';
         });
     }
@@ -527,37 +466,36 @@
                 const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
                 page.drawText(partita, {
-                    x: parseInt(document.getElementById('garaX').value),
-                    y: jpg.height - parseInt(document.getElementById('garaY').value),
-                    size: parseInt(document.getElementById('garaFont').value),
+                    x: 320,
+                    y: jpg.height - 1695,
+                    size: 90,
                     font: boldFont,
                     color: rgb(0, 0, 0)
                 });
 
                 page.drawText(dataPartita, {
-                    x: parseInt(document.getElementById('dataX').value),
-                    y: jpg.height - parseInt(document.getElementById('dataY').value),
-                    size: parseInt(document.getElementById('dataFont').value),
+                    x: 92,
+                    y: jpg.height - 1540,
+                    size: 90,
                     font: boldFont,
                     color: rgb(0, 0, 0)
                 });
 
                 page.drawText(p.numero, {
-                    x: parseInt(document.getElementById('passX').value),
-                    y: jpg.height - parseInt(document.getElementById('passY').value),
-                    size: parseInt(document.getElementById('passFont').value),
+                    x: 602,
+                    y: jpg.height - 1540,
+                    size: 90,
                     font: boldFont,
                     color: rgb(0, 0, 0)
                 });
 
                 page.drawText(p.azienda, {
-                    x: parseInt(document.getElementById('nominativoX').value),
-                    y: jpg.height - parseInt(document.getElementById('nominativoY').value),
-                    size: parseInt(document.getElementById('nominativoFont').value),
+                    x: 320,
+                    y: jpg.height - 1360,
+                    size: 90,
                     font: boldFont,
                     color: rgb(0, 0, 0)
                 });
-</parameter>
 
                 const out = await pdfDoc.save();
                 const blob = new Blob([out], { type: 'application/pdf' });
