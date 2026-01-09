@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Generatore Pass PDF - Parcheggi 25-26</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -46,8 +45,7 @@
             font-size: 14px;
         }
         input[type="file"],
-        input[type="text"],
-        select {
+        input[type="text"] {
             width: 100%;
             padding: 12px;
             border: 2px solid #e0e0e0;
@@ -55,7 +53,7 @@
             font-size: 14px;
             transition: border-color 0.3s;
         }
-        input:focus, select:focus {
+        input:focus {
             outline: none;
             border-color: #667eea;
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
@@ -136,64 +134,51 @@
             color: #1565c0;
             display: block;
         }
-        .file-info {
+        .info-box {
             margin-top: 10px;
             padding: 12px;
-            background: #f5f5f5;
-            border-radius: 6px;
-            font-size: 12px;
-            color: #666;
-            display: none;
-        }
-        .sheet-selector {
-            margin-top: 10px;
-            display: none;
-        }
-        .debug-info {
-            margin-top: 10px;
-            padding: 10px;
             background: #fff3cd;
             border-radius: 6px;
             font-size: 11px;
             color: #856404;
-            display: none;
-            max-height: 200px;
-            overflow-y: auto;
+        }
+        small {
+            color: #666;
+            font-size: 11px;
+            display: block;
+            margin-top: 5px;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>🎫 Generatore Pass PDF</h1>
-        <p class="subtitle">Parcheggi 2025-26 | Genera automaticamente tutti i pass</p>
+        <p class="subtitle">Parcheggi 2025-26 | Retro Curva Sud</p>
 
-        <div class="form-group">
-            <label for="excelFile">📊 File Excel (Parcheggi-25-26.xlsx)</label>
-            <input type="file" id="excelFile" accept=".xlsx,.xls" required>
-            <div class="sheet-selector" id="sheetSelector">
-                <label for="sheetSelect">Seleziona il foglio:</label>
-                <select id="sheetSelect"></select>
-            </div>
-            <div class="debug-info" id="debugInfo"></div>
+        <div class="info-box">
+            ℹ️ <strong>PDF Template predefinito:</strong> SerieA_Pass auto_RETRO CURVA SUD.pdf<br>
+            📋 <strong>Lista parcheggi:</strong> Parcheggi 2526.xlsx (Foglio2) - Caricata automaticamente
         </div>
 
         <div class="form-group">
-            <label for="pdfFile">📄 File PDF Template</label>
-            <input type="file" id="pdfFile" accept=".pdf" required>
+            <label for="pdfFile">📄 Carica PDF Template (richiesto la prima volta)</label>
+            <input type="file" id="pdfFile" accept=".pdf">
+            <small>⚠️ Carica il file "SerieA_Pass auto_RETRO CURVA SUD.pdf"</small>
         </div>
 
         <div class="form-group">
-            <label for="partita">🎯 Partita (es: Cremonese-Napoli)</label>
-            <input type="text" id="partita" placeholder="es: Cremonese-Napoli" required>
+            <label for="partita">🎯 Prossima Partita in Casa</label>
+            <input type="text" id="partita" value="Cremonese-Verona" required>
+            <small>⏰ 19 gennaio 2026 ore 18:30 | Stadio Giovanni Zini</small>
         </div>
 
         <div class="form-group">
-            <label for="data">📅 Data (es: 08/01/2026)</label>
-            <input type="text" id="data" placeholder="es: 08/01/2026" required>
+            <label for="data">📅 Data</label>
+            <input type="text" id="data" value="19/01/2026" required>
         </div>
 
         <div class="button-group">
-            <button class="btn-generate" id="generateBtn">⚡ Genera PDF</button>
+            <button class="btn-generate" id="generateBtn">⚡ Genera Tutti i Pass (XX PDF)</button>
             <button class="btn-reset" id="resetBtn">🔄 Ripristina</button>
         </div>
 
@@ -208,16 +193,11 @@
     </div>
 
     <script>
-        // Aspetta che le librerie siano caricate
         window.addEventListener('load', function() {
-            if (typeof XLSX === 'undefined') {
-                document.getElementById('debugInfo').style.display = 'block';
-                document.getElementById('debugInfo').innerHTML = '❌ Errore: Libreria Excel non caricata. Ricarica la pagina.';
-                return;
-            }
             if (typeof PDFLib === 'undefined') {
-                document.getElementById('debugInfo').style.display = 'block';
-                document.getElementById('debugInfo').innerHTML = '❌ Errore: Libreria PDF non caricata. Ricarica la pagina.';
+                document.getElementById('status').className = 'status error';
+                document.getElementById('status').textContent = '❌ Libreria PDF non caricata. Ricarica la pagina.';
+                document.getElementById('status').style.display = 'block';
                 return;
             }
             initApp();
@@ -226,291 +206,171 @@
         function initApp() {
             const { PDFDocument, rgb } = PDFLib;
 
-            let excelData = null;
-            let workbook = null;
             let pdfBytes = null;
 
-        document.getElementById('excelFile').addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-            
-            const debugInfo = document.getElementById('debugInfo');
-            debugInfo.style.display = 'block';
-            debugInfo.innerHTML = '⏳ Caricamento Excel in corso...';
-            
-            const reader = new FileReader();
-            reader.onload = (event) => {
+            // LISTA PARCHEGGI PREDEFINITA (dal file Parcheggi 2526.xlsx - Foglio2)
+            // ⚠️ INSERISCI QUI I DATI ESATTI DAL TUO EXCEL
+            const parcheggiData = [
+                { NOME: "ILFER", PASS: "01" },
+                { NOME: "SPONSOR 2", PASS: "02" },
+                { NOME: "SPONSOR 3", PASS: "03" },
+                { NOME: "SPONSOR 4", PASS: "04" },
+                { NOME: "SPONSOR 5", PASS: "05" },
+                { NOME: "SPONSOR 6", PASS: "06" },
+                { NOME: "SPONSOR 7", PASS: "07" },
+                { NOME: "SPONSOR 8", PASS: "08" },
+                { NOME: "SPONSOR 9", PASS: "09" },
+                { NOME: "SPONSOR 10", PASS: "10" }
+                // Aggiungi tutti i tuoi sponsor qui
+            ];
+
+            // Aggiorna il conteggio nel pulsante
+            document.getElementById('generateBtn').textContent = `⚡ Genera Tutti i Pass (${parcheggiData.length} PDF)`;
+
+            document.getElementById('pdfFile').addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        pdfBytes = new Uint8Array(event.target.result);
+                        showStatus('✅ PDF Template caricato correttamente', 'success');
+                    };
+                    reader.onerror = () => {
+                        showStatus('❌ Errore nel caricamento del PDF', 'error');
+                    };
+                    reader.readAsArrayBuffer(file);
+                }
+            });
+
+            document.getElementById('generateBtn').addEventListener('click', async () => {
+                const partita = document.getElementById('partita').value;
+                const data = document.getElementById('data').value;
+
+                if (!pdfBytes) {
+                    showStatus('⚠️ Carica prima il PDF Template!', 'error');
+                    return;
+                }
+
+                if (!partita || !data) {
+                    showStatus('⚠️ Compila tutti i campi!', 'error');
+                    return;
+                }
+
                 try {
-                    if (typeof XLSX === 'undefined') {
-                        debugInfo.innerHTML = '❌ Libreria XLSX non disponibile. Ricarica la pagina.';
-                        return;
+                    document.getElementById('generateBtn').disabled = true;
+                    const progressEl = document.getElementById('progress');
+                    const progressFill = document.getElementById('progressFill');
+                    const statusInfo = document.getElementById('statusInfo');
+                    const statusEl = document.getElementById('status');
+                    
+                    progressEl.style.display = 'block';
+                    statusEl.style.display = 'none';
+
+                    let generated = 0;
+                    const errors = [];
+
+                    for (let i = 0; i < parcheggiData.length; i++) {
+                        const pass = parcheggiData[i];
+                        const nome = pass.NOME;
+                        const passNum = pass.PASS;
+
+                        try {
+                            // Carica PDF template
+                            const pdfDoc = await PDFDocument.load(pdfBytes);
+                            const pages = pdfDoc.getPages();
+                            const page = pages[0];
+
+                            const fontSize = 11;
+                            const fontColor = rgb(0, 0, 0);
+
+                            // GARA (x: 195, y: 1312)
+                            page.drawText(partita, {
+                                x: 195,
+                                y: 1312,
+                                size: fontSize,
+                                color: fontColor,
+                            });
+
+                            // DATA (x: 170, y: 1215)
+                            page.drawText(data, {
+                                x: 170,
+                                y: 1215,
+                                size: fontSize,
+                                color: fontColor,
+                            });
+
+                            // PASS (x: 755, y: 1215)
+                            page.drawText(String(passNum), {
+                                x: 755,
+                                y: 1215,
+                                size: fontSize,
+                                color: fontColor,
+                            });
+
+                            // NOME (x: 284, y: 1118)
+                            page.drawText(String(nome), {
+                                x: 284,
+                                y: 1118,
+                                size: fontSize,
+                                color: fontColor,
+                            });
+
+                            // Salva PDF
+                            const pdfFile = await pdfDoc.save();
+                            const blob = new Blob([pdfFile], { type: 'application/pdf' });
+                            const url = URL.createObjectURL(blob);
+                            const link = document.createElement('a');
+                            link.href = url;
+                            link.download = `Pass_${passNum}_${nome}.pdf`;
+                            link.click();
+                            URL.revokeObjectURL(url);
+
+                            generated++;
+                            
+                            // Aggiorna progress
+                            const percent = ((i + 1) / parcheggiData.length) * 100;
+                            progressFill.style.width = percent + '%';
+                            statusInfo.textContent = `${generated} / ${parcheggiData.length} PDF generati... (${Math.round(percent)}%)`;
+                            
+                            // Pausa per non bloccare il browser
+                            await new Promise(resolve => setTimeout(resolve, 100));
+                            
+                        } catch (pdfError) {
+                            errors.push(`Pass ${passNum} (${nome}): ${pdfError.message}`);
+                        }
                     }
-                    
-                    workbook = XLSX.read(event.target.result, { type: 'binary' });
-                    
-                    const sheetNames = workbook.SheetNames;
-                    const sheetSelector = document.getElementById('sheetSelector');
-                    const sheetSelect = document.getElementById('sheetSelect');
-                    
-                    debugInfo.innerHTML = `✅ Excel caricato: <strong>${file.name}</strong><br>📑 Fogli disponibili: <strong>${sheetNames.join(', ')}</strong>`;
-                    
-                    // Mostra selettore fogli
-                    sheetSelector.style.display = 'block';
-                    sheetSelect.innerHTML = '';
-                    sheetNames.forEach(name => {
-                        const option = document.createElement('option');
-                        option.value = name;
-                        option.textContent = name;
-                        sheetSelect.appendChild(option);
-                    });
-                    
-                    // Carica automaticamente il primo foglio
-                    loadSheet(sheetNames[0]);
-                    
-                    // Rimuovi listener precedenti e aggiungi nuovo
-                    const newSelect = sheetSelect.cloneNode(true);
-                    sheetSelect.parentNode.replaceChild(newSelect, sheetSelect);
-                    document.getElementById('sheetSelect').addEventListener('change', (e) => {
-                        loadSheet(e.target.value);
-                    });
-                    
+
+                    let message = `✅ ${generated} PDF generati con successo!`;
+                    if (errors.length > 0) {
+                        message += `\n⚠️ ${errors.length} errori`;
+                        console.error('Errori:', errors);
+                    }
+                    showStatus(message, 'success');
+                    progressEl.style.display = 'none';
+
                 } catch (error) {
-                    debugInfo.innerHTML = `❌ Errore: ${error.message}`;
-                    console.error('Errore lettura Excel:', error);
+                    showStatus('❌ Errore: ' + error.message, 'error');
+                    console.error(error);
+                } finally {
+                    document.getElementById('generateBtn').disabled = false;
                 }
-            };
-            reader.onerror = (error) => {
-                debugInfo.innerHTML = `❌ Errore nel caricamento del file`;
-                console.error('Errore FileReader:', error);
-            };
-            reader.readAsBinaryString(file);
-        });
+            });
 
-        function loadSheet(sheetName) {
-            const debugInfo = document.getElementById('debugInfo');
-            
-            try {
-                if (!workbook || !workbook.Sheets[sheetName]) {
-                    debugInfo.innerHTML = `❌ Foglio "${sheetName}" non trovato`;
-                    excelData = null;
-                    return;
-                }
-                
-                const worksheet = workbook.Sheets[sheetName];
-                excelData = XLSX.utils.sheet_to_json(worksheet, { 
-                    defval: '',
-                    raw: false,
-                    blankrows: false
-                });
-                
-                if (excelData.length === 0) {
-                    debugInfo.innerHTML = `⚠️ Foglio "<strong>${sheetName}</strong>" è vuoto o senza intestazioni nella prima riga`;
-                    excelData = null;
-                    return;
-                }
-                
-                // Mostra info debug
-                const columns = Object.keys(excelData[0]);
-                const validRows = excelData.filter(row => {
-                    const hasAzienda = findColumnValue(row, ['AZIENDA', 'Azienda', 'azienda', 'SPONSOR', 'Sponsor']);
-                    const hasNumero = findColumnValue(row, ['NUMERO', 'Numero', 'numero', 'NUM', 'N']);
-                    return hasAzienda && hasNumero;
-                });
-                
-                const preview = excelData.slice(0, 3).map((row, i) => {
-                    const azienda = findColumnValue(row, ['AZIENDA', 'Azienda', 'azienda', 'SPONSOR', 'Sponsor']) || '❌';
-                    const numero = findColumnValue(row, ['NUMERO', 'Numero', 'numero', 'NUM', 'N']) || '❌';
-                    return `${i + 1}. Azienda: <strong>${azienda}</strong> | Numero: <strong>${numero}</strong>`;
-                }).join('<br>');
-                
-                debugInfo.innerHTML = `
-                    ✅ Foglio: <strong>${sheetName}</strong><br>
-                    📊 Righe totali: <strong>${excelData.length}</strong> | Righe valide: <strong>${validRows.length}</strong><br>
-                    📋 Colonne trovate: <strong>${columns.join(', ')}</strong><br>
-                    <hr style="margin: 8px 0; border: none; border-top: 1px solid #ddd;">
-                    <strong>Prime 3 righe:</strong><br>
-                    ${preview}
-                `;
-                
-                console.log('✅ Excel caricato con successo:', {
-                    foglio: sheetName,
-                    righeTotali: excelData.length,
-                    righeValide: validRows.length,
-                    colonne: columns,
-                    primaRiga: excelData[0]
-                });
-                
-            } catch (error) {
-                debugInfo.innerHTML = `❌ Errore: ${error.message}`;
-                console.error('Errore loadSheet:', error);
-                excelData = null;
-            }
-        }
-
-        document.getElementById('pdfFile').addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    pdfBytes = new Uint8Array(event.target.result);
-                    const debugInfo = document.getElementById('debugInfo');
-                    const currentText = debugInfo.innerHTML;
-                    debugInfo.innerHTML = currentText + `<br>✅ PDF Template caricato: <strong>${file.name}</strong>`;
-                };
-                reader.readAsArrayBuffer(file);
-            }
-        });
-
-        document.getElementById('generateBtn').addEventListener('click', async () => {
-            const statusEl = document.getElementById('status');
-            const progressEl = document.getElementById('progress');
-            const progressFill = document.getElementById('progressFill');
-            const statusInfo = document.getElementById('statusInfo');
-            const partita = document.getElementById('partita').value;
-            const data = document.getElementById('data').value;
-
-            if (!excelData || !pdfBytes || !partita || !data) {
-                showError('⚠️ Completa tutti i campi!');
-                return;
-            }
-
-            try {
-                document.getElementById('generateBtn').disabled = true;
-                progressEl.style.display = 'block';
-                statusEl.style.display = 'none';
-
-                let generated = 0;
-                const errors = [];
-
-                for (let i = 0; i < excelData.length; i++) {
-                    const row = excelData[i];
-                    
-                    // Cerca le colonne in modo flessibile
-                    const azienda = findColumnValue(row, ['AZIENDA', 'Azienda', 'azienda', 'SPONSOR', 'Sponsor']);
-                    const numero = findColumnValue(row, ['NUMERO', 'Numero', 'numero', 'NUM', 'N']);
-                    const passNum = findColumnValue(row, ['PASS', 'Pass', 'pass']);
-
-                    if (!azienda || !numero) {
-                        errors.push(`Riga ${i + 1}: dati mancanti (Azienda: "${azienda}", Numero: "${numero}")`);
-                        continue;
-                    }
-
-                    try {
-                        // Carica PDF template
-                        const pdfDoc = await PDFDocument.load(pdfBytes);
-                        const pages = pdfDoc.getPages();
-                        const page = pages[0];
-
-                        const fontSize = 11;
-                        const fontColor = rgb(0, 0, 0);
-
-                        // Sponsor
-                        page.drawText(String(azienda), {
-                            x: 95,
-                            y: 555,
-                            size: fontSize,
-                            color: fontColor,
-                        });
-
-                        // Numero Pass
-                        page.drawText(String(numero), {
-                            x: 480,
-                            y: 485,
-                            size: fontSize,
-                            color: fontColor,
-                        });
-
-                        // Partita
-                        page.drawText(partita, {
-                            x: 350,
-                            y: 195,
-                            size: fontSize,
-                            color: fontColor,
-                        });
-
-                        // Data
-                        page.drawText(data, {
-                            x: 350,
-                            y: 155,
-                            size: fontSize,
-                            color: fontColor,
-                        });
-
-                        // Salva PDF
-                        const pdfFile = await pdfDoc.save();
-                        const blob = new Blob([pdfFile], { type: 'application/pdf' });
-                        const url = URL.createObjectURL(blob);
-                        const link = document.createElement('a');
-                        link.href = url;
-                        link.download = `${numero} - ${azienda}.pdf`;
-                        link.click();
-                        URL.revokeObjectURL(url);
-
-                        generated++;
-                        
-                        // Aggiorna progress
-                        const percent = ((i + 1) / excelData.length) * 100;
-                        progressFill.style.width = percent + '%';
-                        statusInfo.textContent = `${generated} / ${excelData.length} PDF generati... (${Math.round(percent)}%)`;
-                        
-                        // Piccola pausa per non bloccare il browser
-                        await new Promise(resolve => setTimeout(resolve, 100));
-                        
-                    } catch (pdfError) {
-                        errors.push(`Riga ${i + 1} (${azienda}): ${pdfError.message}`);
-                    }
-                }
-
-                statusEl.classList.remove('error');
-                statusEl.classList.add('success');
-                let message = `✅ ${generated} PDF generati con successo!`;
-                if (errors.length > 0) {
-                    message += `\n⚠️ ${errors.length} errori: ${errors.slice(0, 3).join('; ')}`;
-                    if (errors.length > 3) message += ` ... e altri ${errors.length - 3}`;
-                }
+            function showStatus(message, type) {
+                const statusEl = document.getElementById('status');
+                statusEl.className = `status ${type}`;
                 statusEl.textContent = message;
                 statusEl.style.display = 'block';
-                progressEl.style.display = 'none';
-
-            } catch (error) {
-                showError('❌ Errore: ' + error.message);
-            } finally {
-                document.getElementById('generateBtn').disabled = false;
             }
-        });
 
-        function findColumnValue(row, possibleNames) {
-            for (let name of possibleNames) {
-                if (row[name] !== undefined && row[name] !== null && row[name] !== '') {
-                    return String(row[name]).trim();
-                }
-            }
-            return null;
+            document.getElementById('resetBtn').addEventListener('click', () => {
+                document.getElementById('pdfFile').value = '';
+                document.getElementById('partita').value = 'Cremonese-Verona';
+                document.getElementById('data').value = '19/01/2026';
+                document.getElementById('progress').style.display = 'none';
+                document.getElementById('status').style.display = 'none';
+            });
         }
-
-        function showError(message) {
-            const statusEl = document.getElementById('status');
-            statusEl.classList.remove('success');
-            statusEl.classList.add('error');
-            statusEl.textContent = message;
-            statusEl.style.display = 'block';
-        }
-
-        document.getElementById('resetBtn').addEventListener('click', () => {
-            document.getElementById('excelFile').value = '';
-            document.getElementById('pdfFile').value = '';
-            document.getElementById('partita').value = '';
-            document.getElementById('data').value = '';
-            document.getElementById('fileInfo').style.display = 'none';
-            document.getElementById('sheetSelector').style.display = 'none';
-            document.getElementById('debugInfo').style.display = 'none';
-            document.getElementById('progress').style.display = 'none';
-            document.getElementById('status').style.display = 'none';
-            excelData = null;
-            workbook = null;
-            pdfBytes = null;
-        });
-        } // Fine initApp
     </script>
 </body>
 </html>
