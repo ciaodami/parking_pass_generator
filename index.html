@@ -1,223 +1,42 @@
-<!DOCTYPE html>
-<html lang="it">
-<head>
-<meta charset="UTF-8">
-<title>Generatore Pass PDF</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+const page = pdfDoc.getPages()[0];
+const { width, height } = page.getSize();
+const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
-<!-- PDF LIB -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+// DEBUG: testo visibile
+page.drawText(" ", { x: 1, y: 1 });
 
-<!-- XLSX LIB -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-
-<style>
-body {
-    font-family: Arial, sans-serif;
-    background: #f4f6f8;
-    padding: 30px;
-}
-.container {
-    max-width: 600px;
-    margin: auto;
-    background: white;
-    padding: 25px;
-    border-radius: 8px;
-}
-label {
-    display: block;
-    margin-top: 15px;
-    font-weight: bold;
-}
-input, button {
-    width: 100%;
-    padding: 10px;
-    margin-top: 5px;
-}
-button {
-    background: #4f46e5;
-    color: white;
-    border: none;
-    font-weight: bold;
-    cursor: pointer;
-    margin-top: 20px;
-}
-button:disabled {
-    background: #999;
-    cursor: not-allowed;
-}
-.status {
-    margin-top: 15px;
-    padding: 10px;
-    border-radius: 5px;
-    display: none;
-}
-.success { background: #e6f4ea; color: #1e7e34; }
-.error { background: #f8d7da; color: #842029; }
-</style>
-</head>
-
-<body>
-
-<div class="container">
-    <h2>Generatore Pass PDF</h2>
-    <p>Parcheggi 2025–26</p>
-
-    <label>PDF Template</label>
-    <input type="file" id="pdfFile" accept=".pdf">
-
-    <label>Excel Parcheggi (.xlsx)</label>
-    <input type="file" id="excelFile" accept=".xlsx">
-    <small>Foglio: <strong>Lista</strong> — Col A = azienda | Col C = numero</small>
-
-    <label>Partita</label>
-    <input type="text" id="partita" placeholder="Cremonese - Verona">
-
-    <label>Data partita</label>
-    <input type="text" id="dataPartita" placeholder="19/01/2026">
-
-    <button id="generateBtn">Genera PDF</button>
-
-    <div id="status" class="status"></div>
-</div>
-
-<script>
-const { PDFDocument, StandardFonts, rgb } = PDFLib;
-
-let pdfBytes = null;
-let parcheggiData = [];
-
-function showStatus(message, type) {
-    const el = document.getElementById('status');
-    el.className = 'status ' + type;
-    el.textContent = message;
-    el.style.display = 'block';
-}
-
-/* CARICAMENTO PDF */
-document.getElementById('pdfFile').addEventListener('change', e => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = ev => {
-        pdfBytes = new Uint8Array(ev.target.result);
-        showStatus('PDF template caricato correttamente', 'success');
-    };
-    reader.readAsArrayBuffer(file);
+// GARA
+page.drawText(partita, {
+    x: 195,
+    y: height - 1312,
+    size: 16,
+    font,
+    color: rgb(0, 0, 0)
 });
 
-/* CARICAMENTO EXCEL */
-document.getElementById('excelFile').addEventListener('change', e => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = ev => {
-        const data = new Uint8Array(ev.target.result);
-        const workbook = XLSX.read(data, { type: 'array' });
-        const sheet = workbook.Sheets['Lista'];
-
-        if (!sheet) {
-            showStatus('Foglio "Lista" non trovato nel file Excel', 'error');
-            return;
-        }
-
-        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-
-        parcheggiData = rows
-            .filter(r => r[0] && r[2])
-            .map(r => ({
-                azienda: String(r[0]).trim(),
-                numero: String(r[2]).trim()
-            }));
-
-        document.getElementById('generateBtn').textContent =
-            `Genera ${parcheggiData.length} PDF`;
-
-        showStatus(`${parcheggiData.length} nominativi caricati`, 'success');
-    };
-
-    reader.readAsArrayBuffer(file);
+// DATA
+page.drawText(dataPartita, {
+    x: 170,
+    y: height - 1215,
+    size: 16,
+    font,
+    color: rgb(0, 0, 0)
 });
 
-/* GENERAZIONE PDF */
-document.getElementById('generateBtn').addEventListener('click', async () => {
-
-    if (!pdfBytes) {
-        showStatus('Carica il PDF template', 'error');
-        return;
-    }
-
-    if (parcheggiData.length === 0) {
-        showStatus('Carica il file Excel', 'error');
-        return;
-    }
-
-    const partita = document.getElementById('partita').value.trim();
-    const dataPartita = document.getElementById('dataPartita').value.trim();
-
-    if (!partita || !dataPartita) {
-        showStatus('Inserisci partita e data', 'error');
-        return;
-    }
-
-    for (const p of parcheggiData) {
-        const pdfDoc = await PDFDocument.load(pdfBytes);
-        const page = pdfDoc.getPages()[0];
-        const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-
-        // GARA
-        page.drawText(partita, {
-            x: 195,
-            y: 1312,
-            size: 16,
-            font: font,
-            color: rgb(0, 0, 0)
-        });
-
-        // DATA
-        page.drawText(dataPartita, {
-            x: 170,
-            y: 1215,
-            size: 16,
-            font: font,
-            color: rgb(0, 0, 0)
-        });
-
-        // NUMERO
-        page.drawText(p.numero, {
-            x: 755,
-            y: 1215,
-            size: 16,
-            font: font,
-            color: rgb(0, 0, 0)
-        });
-
-        // AZIENDA
-        page.drawText(p.azienda, {
-            x: 284,
-            y: 1118,
-            size: 16,
-            font: font,
-            color: rgb(0, 0, 0)
-        });
-
-        const pdfOut = await pdfDoc.save();
-        const blob = new Blob([pdfOut], { type: 'application/pdf' });
-        const url = URL.createObjectURL(blob);
-
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${p.numero} - ${p.azienda}.pdf`;
-        a.click();
-
-        URL.revokeObjectURL(url);
-        await new Promise(r => setTimeout(r, 100));
-    }
-
-    showStatus('Tutti i PDF generati correttamente', 'success');
+// NUMERO
+page.drawText(p.numero, {
+    x: 755,
+    y: height - 1215,
+    size: 16,
+    font,
+    color: rgb(0, 0, 0)
 });
-</script>
 
-</body>
-</html>
+// AZIENDA
+page.drawText(p.azienda, {
+    x: 284,
+    y: height - 1118,
+    size: 16,
+    font,
+    color: rgb(0, 0, 0)
+});
