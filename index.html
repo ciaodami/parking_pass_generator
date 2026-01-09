@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>Generatore Pass PDF Pro</title>
+    <title>Generatore Pass PDF - Parcheggi 25-26</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -25,13 +25,13 @@
             background: white;
             border-radius: 12px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            padding: 25px;
+            padding: 30px;
         }
         h2 {
             color: #333;
             margin-bottom: 20px;
-            font-size: 20px;
-            border-bottom: 2px solid #667eea;
+            font-size: 22px;
+            border-bottom: 3px solid #667eea;
             padding-bottom: 10px;
         }
         .form-group {
@@ -42,94 +42,36 @@
             font-weight: 600;
             color: #333;
             margin-bottom: 8px;
-            font-size: 13px;
+            font-size: 14px;
         }
         input[type="file"],
-        input[type="text"],
-        input[type="number"],
-        select {
+        input[type="text"] {
             width: 100%;
-            padding: 10px;
+            padding: 12px;
             border: 2px solid #e0e0e0;
             border-radius: 6px;
-            font-size: 13px;
+            font-size: 14px;
             transition: all 0.3s;
         }
-        input:focus, select:focus {
+        input:focus {
             outline: none;
             border-color: #667eea;
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
-        .coord-controls {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            padding: 15px;
-            background: #f8f9fa;
-            border-radius: 8px;
-            margin-bottom: 15px;
-        }
-        .coord-controls small {
-            display: block;
-            color: #666;
-            font-size: 11px;
-            margin-top: 3px;
-        }
-        .preview-container {
-            position: relative;
-            background: #f0f0f0;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            overflow: hidden;
-            margin-bottom: 15px;
-            max-height: 600px;
-        }
-        .preview-wrapper {
-            position: relative;
-            width: 100%;
-            background: white;
-        }
-        #previewCanvas {
-            display: block;
-            width: 100%;
-            height: auto;
-        }
-        .text-overlay {
-            position: absolute;
-            padding: 5px 10px;
-            background: rgba(102, 126, 234, 0.9);
-            color: white;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: 600;
-            cursor: move;
-            user-select: none;
-            z-index: 10;
-            border: 2px solid #667eea;
-            transition: all 0.2s;
-        }
-        .text-overlay:hover {
-            background: rgba(102, 126, 234, 1);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-        }
-        .text-overlay.active {
-            background: #ff6b6b;
-            border-color: #ff6b6b;
-        }
         .button-group {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-top: 20px;
+            gap: 12px;
+            margin-top: 25px;
         }
         button {
-            padding: 12px;
+            padding: 14px;
             border: none;
             border-radius: 6px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s;
-            font-size: 14px;
+            font-size: 15px;
         }
         .btn-generate {
             grid-column: 1 / -1;
@@ -161,14 +103,17 @@
         .status.success {
             background: #e8f5e9;
             color: #2e7d32;
+            display: block;
         }
         .status.error {
             background: #ffebee;
             color: #c62828;
+            display: block;
         }
         .status.info {
             background: #e3f2fd;
             color: #1565c0;
+            display: block;
         }
         .progress {
             margin-top: 15px;
@@ -176,9 +121,9 @@
         }
         .progress-bar {
             width: 100%;
-            height: 6px;
+            height: 8px;
             background: #e0e0e0;
-            border-radius: 3px;
+            border-radius: 4px;
             overflow: hidden;
         }
         .progress-fill {
@@ -192,11 +137,27 @@
             color: #666;
             margin-top: 5px;
         }
-        .preset-buttons {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
+        .preview-container {
+            background: #f8f9fa;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+        }
+        #previewCanvas {
+            max-width: 100%;
+            height: auto;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .info-box {
+            padding: 15px;
+            background: #fff3cd;
+            border-radius: 8px;
             margin-bottom: 20px;
+            font-size: 12px;
+            color: #856404;
+            line-height: 1.6;
         }
         @media (max-width: 1024px) {
             .wrapper {
@@ -210,34 +171,36 @@
 <div class="wrapper">
     <!-- PANNELLO SINISTRA: CONTROLLI -->
     <div class="panel">
-        <h2>⚙️ Configurazione</h2>
+        <h2>🎫 Generatore Pass PDF</h2>
 
-        <div class="form-group">
-            <label>📷 Immagine Background (JPEG)</label>
-            <input type="file" id="bgImage" accept="image/jpeg">
-            <div class="info-text">Carica il template JPEG</div>
+        <div class="info-box">
+            <strong>📋 Istruzioni:</strong><br>
+            1. Carica immagine JPEG template<br>
+            2. Carica Excel (Foglio "Lista" | ColA=Nome | ColC=Pass)<br>
+            3. Modifica partita/data se necessario<br>
+            4. Genera tutti i PDF
         </div>
 
         <div class="form-group">
-            <label>📊 Excel (.xlsx)</label>
-            <input type="file" id="excelFile" accept=".xlsx">
-            <div class="info-text">Foglio "Lista" | Col A=azienda | Col C=numero</div>
+            <label>📷 Immagine Template (JPEG)</label>
+            <input type="file" id="bgImage" accept="image/jpeg" required>
+            <div class="info-text">SerieA_Pass auto_RETRO CURVA SUD (JPEG)</div>
+        </div>
+
+        <div class="form-group">
+            <label>📊 File Excel</label>
+            <input type="file" id="excelFile" accept=".xlsx" required>
+            <div class="info-text">Parcheggi 2526.xlsx - Foglio "Lista"</div>
         </div>
 
         <div class="form-group">
             <label>🎯 Partita</label>
-            <input type="text" id="partita" placeholder="Cremonese - Verona" value="Cremonese - Verona">
+            <input type="text" id="partita" placeholder="Cremonese-Verona" value="Cremonese-Verona">
         </div>
 
         <div class="form-group">
-            <label>📅 Data Partita</label>
+            <label>📅 Data</label>
             <input type="text" id="dataPartita" placeholder="19/01/2026" value="19/01/2026">
-        </div>
-
-        <h2 style="margin-top: 30px;">🎯 Coordinate Testi</h2>
-
-        <div style="padding: 15px; background: #fff3cd; border-radius: 8px; margin-bottom: 20px; font-size: 12px; color: #856404;">
-            ⚠️ <strong>Coordinate fisse:</strong> Non modificabili - Sistema calibrato su template
         </div>
 
         <div class="button-group">
@@ -259,16 +222,11 @@
     <div class="panel">
         <h2>👁️ Anteprima Live</h2>
         <div class="preview-container">
-            <div class="preview-wrapper">
-                <canvas id="previewCanvas"></canvas>
-                <div id="garaOverlay" class="text-overlay" style="display:none;">GARA</div>
-                <div id="dataOverlay" class="text-overlay" style="display:none;">DATA</div>
-                <div id="passOverlay" class="text-overlay" style="display:none;">PASS</div>
-                <div id="nominativoOverlay" class="text-overlay" style="display:none;">NOME</div>
-</parameter>
+            <canvas id="previewCanvas"></canvas>
+            <div class="info-text" style="margin-top: 15px;">
+                💡 Anteprima con primo sponsor della lista
             </div>
         </div>
-        <div class="info-text">💡 Trascina i box blu per regolare la posizione. Cambia i valori a sinistra per vedere l'anteprima aggiornata.</div>
     </div>
 </div>
 
@@ -278,17 +236,6 @@
     let imageBytes = null;
     let parcheggiData = [];
     let bgImage = null;
-    let draggingElement = null;
-    let offsetX = 0;
-    let offsetY = 0;
-
-    const fields = {
-        gara: { xId: 'garaX', yId: 'garaY', fontId: 'garaFont', overlayId: 'garaOverlay', bold: true },
-        data: { xId: 'dataX', yId: 'dataY', fontId: 'dataFont', overlayId: 'dataOverlay', bold: true },
-        pass: { xId: 'passX', yId: 'passY', fontId: 'passFont', overlayId: 'passOverlay', bold: true },
-        nominativo: { xId: 'nominativoX', yId: 'nominativoY', fontId: 'nominativoFont', overlayId: 'nominativoOverlay', bold: true }
-    };
-</parameter>
 
     function showStatus(msg, type) {
         const s = document.getElementById('status');
@@ -306,7 +253,7 @@
             img.onload = () => {
                 bgImage = img;
                 updatePreview();
-                showStatus('✅ Background caricato', 'success');
+                showStatus('✅ Immagine caricata correttamente', 'success');
             };
             img.src = URL.createObjectURL(new Blob([ev.target.result]));
         };
@@ -321,7 +268,7 @@
                 const wb = XLSX.read(new Uint8Array(ev.target.result), { type: 'array' });
                 const sheet = wb.Sheets['Lista'];
                 if (!sheet) {
-                    showStatus('❌ Foglio "Lista" non trovato', 'error');
+                    showStatus('❌ Foglio "Lista" non trovato nell\'Excel', 'error');
                     return;
                 }
                 const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
@@ -331,9 +278,16 @@
                         azienda: String(r[0]).trim(),
                         numero: String(r[2]).trim()
                     }));
-                showStatus(`✅ ${parcheggiData.length} sponsor caricati`, 'success');
+                
+                if (parcheggiData.length === 0) {
+                    showStatus('❌ Nessun dato valido trovato nell\'Excel', 'error');
+                    return;
+                }
+                
+                showStatus(`✅ ${parcheggiData.length} sponsor caricati correttamente`, 'success');
+                updatePreview();
             } catch (err) {
-                showStatus('❌ Errore lettura Excel: ' + err.message, 'error');
+                showStatus('❌ Errore nella lettura dell\'Excel: ' + err.message, 'error');
             }
         };
         reader.readAsArrayBuffer(e.target.files[0]);
@@ -346,92 +300,47 @@
         const canvas = document.getElementById('previewCanvas');
         const ctx = canvas.getContext('2d');
 
-        canvas.width = bgImage.width / 2;
-        canvas.height = bgImage.height / 2;
+        // Scala immagine per anteprima
+        const scale = 0.5;
+        canvas.width = bgImage.width * scale;
+        canvas.height = bgImage.height * scale;
 
         ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
 
-        // Draw text overlays con font size 90
+        const partita = document.getElementById('partita').value || 'Cremonese-Verona';
+        const data = document.getElementById('dataPartita').value || '19/01/2026';
+        const primoSponsor = parcheggiData.length > 0 ? parcheggiData[0].azienda : 'NOME SPONSOR';
+        const primoPass = parcheggiData.length > 0 ? parcheggiData[0].numero : '01';
+
         ctx.fillStyle = '#000';
-        ctx.font = `bold 45px Helvetica`;
-        ctx.fillText('GARA', 320 / 2, canvas.height - 1695 / 2);
+        ctx.font = `bold ${45 * scale}px Helvetica`;
 
-        ctx.font = `bold 45px Helvetica`;
-        ctx.fillText('DATA', 92 / 2, canvas.height - 1540 / 2);
+        // GARA (x: 320, y: 1695 dall'alto)
+        ctx.fillText(partita, 320 * scale, canvas.height - (1695 * scale));
 
-        ctx.font = `bold 45px Helvetica`;
-        ctx.fillText('PASS', 602 / 2, canvas.height - 1540 / 2);
+        // DATA (x: 92, y: 1540 dall'alto)
+        ctx.fillText(data, 92 * scale, canvas.height - (1540 * scale));
 
-        // Mostra primo nome da Excel
-        const firstNome = parcheggiData.length > 0 ? parcheggiData[0].azienda : 'NOME';
-        ctx.font = `bold 45px Helvetica`;
-        ctx.fillText(firstNome, 320 / 2, canvas.height - 1360 / 2);
+        // PASS (x: 602, y: 1540 dall'alto)
+        ctx.fillText(primoPass, 602 * scale, canvas.height - (1540 * scale));
 
-        // Update overlay positions
-        updateOverlayPositions();
+        // NOME (x: 320, y: 1360 dall'alto)
+        ctx.fillText(primoSponsor, 320 * scale, canvas.height - (1360 * scale));
     }
 
-    function updateOverlayPositions() {
-        const canvas = document.getElementById('previewCanvas');
-        if (!canvas.offsetParent) return;
-
-        const coords = {
-            gara: { x: 320, y: 1695, fontSize: 90 },
-            data: { x: 92, y: 1540, fontSize: 90 },
-            pass: { x: 602, y: 1540, fontSize: 90 },
-            nominativo: { x: 320, y: 1360, fontSize: 90 }
-        };
-
-        Object.entries(coords).forEach(([field, coord]) => {
-            const overlay = document.getElementById(fields[field].overlayId);
-            overlay.style.left = (coord.x / 2) + 'px';
-            overlay.style.top = (canvas.height - coord.y / 2) + 'px';
-            overlay.style.fontSize = (coord.fontSize / 2) + 'px';
-            overlay.style.display = 'block';
-        });
-    }
-
-    // DRAG AND DROP OVERLAYS
-    Object.values(fields).forEach(config => {
-        const overlay = document.getElementById(config.overlayId);
-        overlay.addEventListener('mousedown', e => {
-            draggingElement = { overlay, config, startX: e.clientX, startY: e.clientY };
-        });
-    });
-
-    document.addEventListener('mousemove', e => {
-        if (!draggingElement) return;
-        const { overlay, config, startX, startY } = draggingElement;
-        const dx = e.clientX - startX;
-        const dy = e.clientY - startY;
-
-        const newX = parseInt(document.getElementById(config.xId).value) + (dx * 2);
-        const newY = parseInt(document.getElementById(config.yId).value) - (dy * 2);
-
-        document.getElementById(config.xId).value = newX;
-        document.getElementById(config.yId).value = newY;
-
-        updatePreview();
-
-        draggingElement.startX = e.clientX;
-        draggingElement.startY = e.clientY;
-    });
-
-    document.addEventListener('mouseup', () => {
-        draggingElement = null;
-    });
-
-    // UPDATE PREVIEW ON INPUT CHANGE
-    Object.values(fields).forEach(config => {
-        document.getElementById(config.xId).addEventListener('input', updatePreview);
-        document.getElementById(config.yId).addEventListener('input', updatePreview);
-        document.getElementById(config.fontId).addEventListener('input', updatePreview);
-    });
+    // Aggiorna anteprima quando cambiano partita/data
+    document.getElementById('partita').addEventListener('input', updatePreview);
+    document.getElementById('dataPartita').addEventListener('input', updatePreview);
 
     // GENERA PDF
     document.getElementById('generateBtn').addEventListener('click', async () => {
-        if (!imageBytes || parcheggiData.length === 0) {
-            showStatus('❌ Carica immagine e Excel', 'error');
+        if (!imageBytes) {
+            showStatus('❌ Carica prima l\'immagine template', 'error');
+            return;
+        }
+        
+        if (parcheggiData.length === 0) {
+            showStatus('❌ Carica prima il file Excel', 'error');
             return;
         }
 
@@ -449,6 +358,7 @@
         const statusInfo = document.getElementById('statusInfo');
 
         progress.style.display = 'block';
+        document.getElementById('status').style.display = 'none';
 
         try {
             for (let i = 0; i < parcheggiData.length; i++) {
@@ -460,11 +370,9 @@
                 const page = pdfDoc.addPage([jpg.width, jpg.height]);
                 page.drawImage(jpg, { x: 0, y: 0, width: jpg.width, height: jpg.height });
 
-                const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-
-                // Usa Helvetica Bold
                 const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
+                // GARA (x: 320, y: dall'alto 1695)
                 page.drawText(partita, {
                     x: 320,
                     y: jpg.height - 1695,
@@ -473,6 +381,7 @@
                     color: rgb(0, 0, 0)
                 });
 
+                // DATA (x: 92, y: dall'alto 1540)
                 page.drawText(dataPartita, {
                     x: 92,
                     y: jpg.height - 1540,
@@ -481,6 +390,7 @@
                     color: rgb(0, 0, 0)
                 });
 
+                // PASS (x: 602, y: dall'alto 1540)
                 page.drawText(p.numero, {
                     x: 602,
                     y: jpg.height - 1540,
@@ -489,6 +399,7 @@
                     color: rgb(0, 0, 0)
                 });
 
+                // NOME (x: 320, y: dall'alto 1360)
                 page.drawText(p.azienda, {
                     x: 320,
                     y: jpg.height - 1360,
@@ -503,7 +414,7 @@
 
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `${p.numero} - ${p.azienda}.pdf`;
+                a.download = `Pass_${p.numero}_${p.azienda}.pdf`;
                 a.click();
 
                 URL.revokeObjectURL(url);
@@ -518,52 +429,28 @@
             showStatus(`✅ ${parcheggiData.length} PDF generati con successo!`, 'success');
             progress.style.display = 'none';
         } catch (error) {
-            showStatus('❌ Errore: ' + error.message, 'error');
+            showStatus('❌ Errore durante la generazione: ' + error.message, 'error');
+            console.error(error);
         } finally {
             document.getElementById('generateBtn').disabled = false;
         }
     });
 
-    function savePreset() {
-        const preset = {};
-        Object.entries(fields).forEach(([field, config]) => {
-            preset[field] = {
-                x: document.getElementById(config.xId).value,
-                y: document.getElementById(config.yId).value,
-                font: document.getElementById(config.fontId).value
-            };
-        });
-        localStorage.setItem('passPreset', JSON.stringify(preset));
-        showStatus('💾 Preset salvato!', 'success');
-    }
-
-    function loadPreset() {
-        const preset = localStorage.getItem('passPreset');
-        if (!preset) {
-            showStatus('❌ Nessun preset trovato', 'error');
-            return;
-        }
-        const data = JSON.parse(preset);
-        Object.entries(fields).forEach(([field, config]) => {
-            if (data[field]) {
-                document.getElementById(config.xId).value = data[field].x;
-                document.getElementById(config.yId).value = data[field].y;
-                document.getElementById(config.fontId).value = data[field].font;
-            }
-        });
-        updatePreview();
-        showStatus('📂 Preset caricato!', 'success');
-    }
-
     function resetForm() {
         document.getElementById('bgImage').value = '';
         document.getElementById('excelFile').value = '';
-        document.getElementById('partita').value = 'Cremonese - Verona';
+        document.getElementById('partita').value = 'Cremonese-Verona';
         document.getElementById('dataPartita').value = '19/01/2026';
         bgImage = null;
+        imageBytes = null;
         parcheggiData = [];
-        document.getElementById('previewCanvas').getContext('2d').clearRect(0, 0, 10000, 10000);
+        const canvas = document.getElementById('previewCanvas');
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        canvas.width = 0;
+        canvas.height = 0;
         document.getElementById('status').style.display = 'none';
+        document.getElementById('progress').style.display = 'none';
         showStatus('🔄 Form ripristinato', 'info');
     }
 </script>
