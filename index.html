@@ -1,68 +1,66 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-    <meta charset="UTF-8">
-    <title>Generatore Pass PDF</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<title>Generatore Pass PDF</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <!-- PDF LIB -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<!-- PDF LIB -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 
-    <!-- XLSX LIB -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<!-- XLSX LIB -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: #f4f6f8;
-            padding: 30px;
-        }
-        .container {
-            max-width: 600px;
-            margin: auto;
-            background: white;
-            padding: 25px;
-            border-radius: 8px;
-        }
-        h1 {
-            margin-bottom: 10px;
-        }
-        label {
-            display: block;
-            margin-top: 15px;
-            font-weight: bold;
-        }
-        input, button {
-            width: 100%;
-            margin-top: 5px;
-            padding: 10px;
-        }
-        button {
-            background: #4f46e5;
-            color: white;
-            border: none;
-            font-weight: bold;
-            cursor: pointer;
-            margin-top: 20px;
-        }
-        button:disabled {
-            background: #999;
-            cursor: not-allowed;
-        }
-        .status {
-            margin-top: 15px;
-            padding: 10px;
-            border-radius: 5px;
-            display: none;
-        }
-        .success { background: #e6f4ea; color: #1e7e34; }
-        .error { background: #f8d7da; color: #842029; }
-    </style>
+<style>
+body {
+    font-family: Arial, sans-serif;
+    background: #f4f6f8;
+    padding: 30px;
+}
+.container {
+    max-width: 600px;
+    margin: auto;
+    background: white;
+    padding: 25px;
+    border-radius: 8px;
+}
+label {
+    display: block;
+    margin-top: 15px;
+    font-weight: bold;
+}
+input, button {
+    width: 100%;
+    padding: 10px;
+    margin-top: 5px;
+}
+button {
+    background: #4f46e5;
+    color: white;
+    border: none;
+    font-weight: bold;
+    cursor: pointer;
+    margin-top: 20px;
+}
+button:disabled {
+    background: #999;
+    cursor: not-allowed;
+}
+.status {
+    margin-top: 15px;
+    padding: 10px;
+    border-radius: 5px;
+    display: none;
+}
+.success { background: #e6f4ea; color: #1e7e34; }
+.error { background: #f8d7da; color: #842029; }
+</style>
 </head>
+
 <body>
 
 <div class="container">
-    <h1>Generatore Pass PDF</h1>
+    <h2>Generatore Pass PDF</h2>
     <p>Parcheggi 2025–26</p>
 
     <label>PDF Template</label>
@@ -70,7 +68,13 @@
 
     <label>Excel Parcheggi (.xlsx)</label>
     <input type="file" id="excelFile" accept=".xlsx">
-    <small>Foglio richiesto: <strong>Lista</strong> – Col A=azienda, Col C=numero</small>
+    <small>Foglio: <strong>Lista</strong> — Col A = azienda | Col C = numero</small>
+
+    <label>Partita</label>
+    <input type="text" id="partita" placeholder="Cremonese - Verona">
+
+    <label>Data partita</label>
+    <input type="text" id="dataPartita" placeholder="19/01/2026">
 
     <button id="generateBtn">Genera PDF</button>
 
@@ -78,6 +82,11 @@
 </div>
 
 <script>
+const { PDFDocument, StandardFonts, rgb } = PDFLib;
+
+let pdfBytes = null;
+let parcheggiData = [];
+
 function showStatus(message, type) {
     const el = document.getElementById('status');
     el.className = 'status ' + type;
@@ -85,57 +94,34 @@ function showStatus(message, type) {
     el.style.display = 'block';
 }
 
-const { PDFDocument, StandardFonts, rgb } = PDFLib;
-
-let pdfBytes = null;
-let parcheggiData = [];
-
-// ---- CALENDARIO CASA CREMONESE (Serie A 2025/26) ----
-// Ogni elemento: { date: "YYYY-MM-DD", opponent: "Nome Squadra" }
-// Basato sul calendario ufficiale Serie A 2025/26 verificato da fonti sportive
-const calendarioCasa = [
-    { date: "2025-08-31", opponent: "Sassuolo" },
-    { date: "2025-09-21", opponent: "Parma" },
-    { date: "2025-10-25", opponent: "Atalanta" },
-    { date: "2025-11-23", opponent: "Roma" },
-    { date: "2026-01-08", opponent: "Cagliari" }
-];
-
-function trovaProssimaCasa() {
-    const oggi = new Date().toISOString().split("T")[0];
-    for (let m of calendarioCasa) {
-        if (m.date >= oggi) {
-            return m;
-        }
-    }
-    return null;
-}
-
-/* PDF TEMPLATE */
+/* CARICAMENTO PDF */
 document.getElementById('pdfFile').addEventListener('change', e => {
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = ev => {
         pdfBytes = new Uint8Array(ev.target.result);
-        showStatus('PDF template caricato', 'success');
+        showStatus('PDF template caricato correttamente', 'success');
     };
     reader.readAsArrayBuffer(file);
 });
 
-/* EXCEL FILE */
+/* CARICAMENTO EXCEL */
 document.getElementById('excelFile').addEventListener('change', e => {
     const file = e.target.files[0];
     if (!file) return;
+
     const reader = new FileReader();
     reader.onload = ev => {
         const data = new Uint8Array(ev.target.result);
         const workbook = XLSX.read(data, { type: 'array' });
         const sheet = workbook.Sheets['Lista'];
+
         if (!sheet) {
-            showStatus('Foglio "Lista" non trovato', 'error');
+            showStatus('Foglio "Lista" non trovato nel file Excel', 'error');
             return;
         }
+
         const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
 
         parcheggiData = rows
@@ -148,54 +134,76 @@ document.getElementById('excelFile').addEventListener('change', e => {
         document.getElementById('generateBtn').textContent =
             `Genera ${parcheggiData.length} PDF`;
 
-        showStatus(`${parcheggiData.length} righe caricate`, 'success');
+        showStatus(`${parcheggiData.length} nominativi caricati`, 'success');
     };
+
     reader.readAsArrayBuffer(file);
 });
 
-/* GENERA PDF */
+/* GENERAZIONE PDF */
 document.getElementById('generateBtn').addEventListener('click', async () => {
+
     if (!pdfBytes) {
         showStatus('Carica il PDF template', 'error');
         return;
     }
+
     if (parcheggiData.length === 0) {
         showStatus('Carica il file Excel', 'error');
         return;
     }
 
-    const prossima = trovaProssimaCasa();
-    if (!prossima) {
-        showStatus('Nessuna prossima partita in casa trovata', 'error');
+    const partita = document.getElementById('partita').value.trim();
+    const dataPartita = document.getElementById('dataPartita').value.trim();
+
+    if (!partita || !dataPartita) {
+        showStatus('Inserisci partita e data', 'error');
         return;
     }
 
-    const partitaStr = `Cremonese - ${prossima.opponent}`;
-    const dataStr = new Date(prossima.date).toLocaleDateString("it-IT");
-
-    for (let p of parcheggiData) {
+    for (const p of parcheggiData) {
         const pdfDoc = await PDFDocument.load(pdfBytes);
         const page = pdfDoc.getPages()[0];
         const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
-        page.drawText(partitaStr, {
-            x: 195, y: 1312, size: 16, font: font, color: rgb(0, 0, 0)
+        // GARA
+        page.drawText(partita, {
+            x: 195,
+            y: 1312,
+            size: 16,
+            font: font,
+            color: rgb(0, 0, 0)
         });
 
-        page.drawText(dataStr, {
-            x: 170, y: 1215, size: 16, font: font, color: rgb(0, 0, 0)
+        // DATA
+        page.drawText(dataPartita, {
+            x: 170,
+            y: 1215,
+            size: 16,
+            font: font,
+            color: rgb(0, 0, 0)
         });
 
+        // NUMERO
         page.drawText(p.numero, {
-            x: 755, y: 1215, size: 16, font: font, color: rgb(0, 0, 0)
+            x: 755,
+            y: 1215,
+            size: 16,
+            font: font,
+            color: rgb(0, 0, 0)
         });
 
+        // AZIENDA
         page.drawText(p.azienda, {
-            x: 284, y: 1118, size: 16, font: font, color: rgb(0, 0, 0)
+            x: 284,
+            y: 1118,
+            size: 16,
+            font: font,
+            color: rgb(0, 0, 0)
         });
 
-        const pdfBytesOut = await pdfDoc.save();
-        const blob = new Blob([pdfBytesOut], { type: 'application/pdf' });
+        const pdfOut = await pdfDoc.save();
+        const blob = new Blob([pdfOut], { type: 'application/pdf' });
         const url = URL.createObjectURL(blob);
 
         const a = document.createElement('a');
@@ -207,7 +215,7 @@ document.getElementById('generateBtn').addEventListener('click', async () => {
         await new Promise(r => setTimeout(r, 100));
     }
 
-    showStatus('Tutti i PDF generati', 'success');
+    showStatus('Tutti i PDF generati correttamente', 'success');
 });
 </script>
 
