@@ -2,375 +2,190 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
+    <title>Generatore Pass PDF</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Generatore Pass PDF - Parcheggi 25-26</title>
+
+    <!-- PDF LIB -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+
+    <!-- XLSX LIB -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            padding: 30px;
         }
         .container {
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
             max-width: 600px;
-            width: 100%;
-            padding: 40px;
+            margin: auto;
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
         }
         h1 {
-            color: #333;
             margin-bottom: 10px;
-            font-size: 28px;
-        }
-        .subtitle {
-            color: #666;
-            margin-bottom: 30px;
-            font-size: 14px;
-        }
-        .form-group {
-            margin-bottom: 20px;
         }
         label {
             display: block;
-            color: #333;
-            font-weight: 500;
-            margin-bottom: 8px;
-            font-size: 14px;
+            margin-top: 15px;
+            font-weight: bold;
         }
-        input[type="file"],
-        input[type="text"] {
+        input, button {
             width: 100%;
-            padding: 12px;
-            border: 2px solid #e0e0e0;
-            border-radius: 6px;
-            font-size: 14px;
-            transition: border-color 0.3s;
-        }
-        input:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-        }
-        .button-group {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            margin-top: 30px;
+            margin-top: 5px;
+            padding: 10px;
         }
         button {
-            padding: 12px 24px;
-            border: none;
-            border-radius: 6px;
-            font-size: 15px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-        .btn-generate {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #4f46e5;
             color: white;
-            grid-column: 1 / -1;
-        }
-        .btn-generate:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
-        }
-        .btn-generate:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none;
-        }
-        .btn-reset {
-            background: #f0f0f0;
-            color: #333;
-        }
-        .btn-reset:hover {
-            background: #e0e0e0;
-        }
-        .progress {
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
             margin-top: 20px;
-            display: none;
         }
-        .progress-bar {
-            width: 100%;
-            height: 6px;
-            background: #e0e0e0;
-            border-radius: 3px;
-            overflow: hidden;
-        }
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-            width: 0%;
-            transition: width 0.3s;
+        button:disabled {
+            background: #999;
+            cursor: not-allowed;
         }
         .status {
             margin-top: 15px;
-            padding: 12px;
-            border-radius: 6px;
-            font-size: 13px;
-            text-align: center;
+            padding: 10px;
+            border-radius: 5px;
             display: none;
         }
-        .status.success {
-            background: #e8f5e9;
-            color: #2e7d32;
-            display: block;
-        }
-        .status.error {
-            background: #ffebee;
-            color: #c62828;
-            display: block;
-        }
-        .status.info {
-            background: #e3f2fd;
-            color: #1565c0;
-            display: block;
-        }
-        .info-box {
-            margin-top: 10px;
-            padding: 12px;
-            background: #fff3cd;
-            border-radius: 6px;
-            font-size: 11px;
-            color: #856404;
-        }
-        small {
-            color: #666;
-            font-size: 11px;
-            display: block;
-            margin-top: 5px;
-        }
+        .success { background: #e6f4ea; color: #1e7e34; }
+        .error { background: #f8d7da; color: #842029; }
+        .info { background: #e7f1ff; color: #084298; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>🎫 Generatore Pass PDF</h1>
-        <p class="subtitle">Parcheggi 2025-26 | Retro Curva Sud</p>
 
-        <div class="info-box">
-            ℹ️ <strong>PDF Template predefinito:</strong> SerieA_Pass auto_RETRO CURVA SUD.pdf<br>
-            📋 <strong>Lista parcheggi:</strong> Parcheggi 2526.xlsx (Foglio2) - Caricata automaticamente
-        </div>
+<div class="container">
+    <h1>Generatore Pass PDF</h1>
+    <p>Parcheggi 2025–26</p>
 
-        <div class="form-group">
-            <label for="pdfFile">📄 Carica PDF Template (richiesto la prima volta)</label>
-            <input type="file" id="pdfFile" accept=".pdf">
-            <small>⚠️ Carica il file "SerieA_Pass auto_RETRO CURVA SUD.pdf"</small>
-        </div>
+    <label>PDF Template</label>
+    <input type="file" id="pdfFile" accept=".pdf">
 
-        <div class="form-group">
-            <label for="partita">🎯 Prossima Partita in Casa</label>
-            <input type="text" id="partita" value="Cremonese-Verona" required>
-            <small>⏰ 19 gennaio 2026 ore 18:30 | Stadio Giovanni Zini</small>
-        </div>
+    <label>Excel Parcheggi (.xlsx)</label>
+    <input type="file" id="excelFile" accept=".xlsx">
+    <small>Foglio richiesto: <strong>Foglio2</strong> – Colonna A = NOME</small>
 
-        <div class="form-group">
-            <label for="data">📅 Data</label>
-            <input type="text" id="data" value="19/01/2026" required>
-        </div>
+    <label>Partita</label>
+    <input type="text" id="partita" value="Cremonese-Verona">
 
-        <div class="button-group">
-            <button class="btn-generate" id="generateBtn">⚡ Genera Tutti i Pass (XX PDF)</button>
-            <button class="btn-reset" id="resetBtn">🔄 Ripristina</button>
-        </div>
+    <label>Data</label>
+    <input type="text" id="data" value="19/01/2026">
 
-        <div class="progress" id="progress">
-            <div class="progress-bar">
-                <div class="progress-fill" id="progressFill"></div>
-            </div>
-            <div class="status info" id="statusInfo"></div>
-        </div>
+    <button id="generateBtn">Genera PDF</button>
 
-        <div class="status" id="status"></div>
-    </div>
+    <div id="status" class="status"></div>
+</div>
 
-    <script>
-        window.addEventListener('load', function() {
-            if (typeof PDFLib === 'undefined') {
-                document.getElementById('status').className = 'status error';
-                document.getElementById('status').textContent = '❌ Libreria PDF non caricata. Ricarica la pagina.';
-                document.getElementById('status').style.display = 'block';
-                return;
-            }
-            initApp();
-        });
+<script>
+function showStatus(message, type) {
+    const el = document.getElementById('status');
+    el.className = 'status ' + type;
+    el.textContent = message;
+    el.style.display = 'block';
+}
 
-        function initApp() {
-            const { PDFDocument, rgb } = PDFLib;
+const { PDFDocument, rgb } = PDFLib;
 
-            let pdfBytes = null;
+let pdfBytes = null;
+let parcheggiData = [];
 
-            // LISTA PARCHEGGI PREDEFINITA (dal file Parcheggi 2526.xlsx - Foglio2)
-            // ⚠️ INSERISCI QUI I DATI ESATTI DAL TUO EXCEL
-            const parcheggiData = [
-                { NOME: "ILFER", PASS: "01" },
-                { NOME: "SPONSOR 2", PASS: "02" },
-                { NOME: "SPONSOR 3", PASS: "03" },
-                { NOME: "SPONSOR 4", PASS: "04" },
-                { NOME: "SPONSOR 5", PASS: "05" },
-                { NOME: "SPONSOR 6", PASS: "06" },
-                { NOME: "SPONSOR 7", PASS: "07" },
-                { NOME: "SPONSOR 8", PASS: "08" },
-                { NOME: "SPONSOR 9", PASS: "09" },
-                { NOME: "SPONSOR 10", PASS: "10" }
-                // Aggiungi tutti i tuoi sponsor qui
-            ];
+/* PDF TEMPLATE */
+document.getElementById('pdfFile').addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
 
-            // Aggiorna il conteggio nel pulsante
-            document.getElementById('generateBtn').textContent = `⚡ Genera Tutti i Pass (${parcheggiData.length} PDF)`;
+    const reader = new FileReader();
+    reader.onload = ev => {
+        pdfBytes = new Uint8Array(ev.target.result);
+        showStatus('PDF template caricato', 'success');
+    };
+    reader.readAsArrayBuffer(file);
+});
 
-            document.getElementById('pdfFile').addEventListener('change', (e) => {
-                const file = e.target.files[0];
-                if (file) {
-                    const reader = new FileReader();
-                    reader.onload = (event) => {
-                        pdfBytes = new Uint8Array(event.target.result);
-                        showStatus('✅ PDF Template caricato correttamente', 'success');
-                    };
-                    reader.onerror = () => {
-                        showStatus('❌ Errore nel caricamento del PDF', 'error');
-                    };
-                    reader.readAsArrayBuffer(file);
-                }
-            });
+/* EXCEL */
+document.getElementById('excelFile').addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
 
-            document.getElementById('generateBtn').addEventListener('click', async () => {
-                const partita = document.getElementById('partita').value;
-                const data = document.getElementById('data').value;
+    const reader = new FileReader();
+    reader.onload = ev => {
+        const data = new Uint8Array(ev.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
 
-                if (!pdfBytes) {
-                    showStatus('⚠️ Carica prima il PDF Template!', 'error');
-                    return;
-                }
-
-                if (!partita || !data) {
-                    showStatus('⚠️ Compila tutti i campi!', 'error');
-                    return;
-                }
-
-                try {
-                    document.getElementById('generateBtn').disabled = true;
-                    const progressEl = document.getElementById('progress');
-                    const progressFill = document.getElementById('progressFill');
-                    const statusInfo = document.getElementById('statusInfo');
-                    const statusEl = document.getElementById('status');
-                    
-                    progressEl.style.display = 'block';
-                    statusEl.style.display = 'none';
-
-                    let generated = 0;
-                    const errors = [];
-
-                    for (let i = 0; i < parcheggiData.length; i++) {
-                        const pass = parcheggiData[i];
-                        const nome = pass.NOME;
-                        const passNum = pass.PASS;
-
-                        try {
-                            // Carica PDF template
-                            const pdfDoc = await PDFDocument.load(pdfBytes);
-                            const pages = pdfDoc.getPages();
-                            const page = pages[0];
-
-                            const fontSize = 11;
-                            const fontColor = rgb(0, 0, 0);
-
-                            // GARA (x: 195, y: 1312)
-                            page.drawText(partita, {
-                                x: 195,
-                                y: 1312,
-                                size: fontSize,
-                                color: fontColor,
-                            });
-
-                            // DATA (x: 170, y: 1215)
-                            page.drawText(data, {
-                                x: 170,
-                                y: 1215,
-                                size: fontSize,
-                                color: fontColor,
-                            });
-
-                            // PASS (x: 755, y: 1215)
-                            page.drawText(String(passNum), {
-                                x: 755,
-                                y: 1215,
-                                size: fontSize,
-                                color: fontColor,
-                            });
-
-                            // NOME (x: 284, y: 1118)
-                            page.drawText(String(nome), {
-                                x: 284,
-                                y: 1118,
-                                size: fontSize,
-                                color: fontColor,
-                            });
-
-                            // Salva PDF
-                            const pdfFile = await pdfDoc.save();
-                            const blob = new Blob([pdfFile], { type: 'application/pdf' });
-                            const url = URL.createObjectURL(blob);
-                            const link = document.createElement('a');
-                            link.href = url;
-                            link.download = `Pass_${passNum}_${nome}.pdf`;
-                            link.click();
-                            URL.revokeObjectURL(url);
-
-                            generated++;
-                            
-                            // Aggiorna progress
-                            const percent = ((i + 1) / parcheggiData.length) * 100;
-                            progressFill.style.width = percent + '%';
-                            statusInfo.textContent = `${generated} / ${parcheggiData.length} PDF generati... (${Math.round(percent)}%)`;
-                            
-                            // Pausa per non bloccare il browser
-                            await new Promise(resolve => setTimeout(resolve, 100));
-                            
-                        } catch (pdfError) {
-                            errors.push(`Pass ${passNum} (${nome}): ${pdfError.message}`);
-                        }
-                    }
-
-                    let message = `✅ ${generated} PDF generati con successo!`;
-                    if (errors.length > 0) {
-                        message += `\n⚠️ ${errors.length} errori`;
-                        console.error('Errori:', errors);
-                    }
-                    showStatus(message, 'success');
-                    progressEl.style.display = 'none';
-
-                } catch (error) {
-                    showStatus('❌ Errore: ' + error.message, 'error');
-                    console.error(error);
-                } finally {
-                    document.getElementById('generateBtn').disabled = false;
-                }
-            });
-
-            function showStatus(message, type) {
-                const statusEl = document.getElementById('status');
-                statusEl.className = `status ${type}`;
-                statusEl.textContent = message;
-                statusEl.style.display = 'block';
-            }
-
-            document.getElementById('resetBtn').addEventListener('click', () => {
-                document.getElementById('pdfFile').value = '';
-                document.getElementById('partita').value = 'Cremonese-Verona';
-                document.getElementById('data').value = '19/01/2026';
-                document.getElementById('progress').style.display = 'none';
-                document.getElementById('status').style.display = 'none';
-            });
+        const sheet = workbook.Sheets['Foglio2'];
+        if (!sheet) {
+            showStatus('Foglio2 non trovato', 'error');
+            return;
         }
-    </script>
+
+        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+        parcheggiData = rows
+            .map(r => r[0])
+            .filter(v => v && String(v).trim() !== '')
+            .map((nome, i) => ({
+                NOME: String(nome).trim(),
+                PASS: String(i + 1).padStart(2, '0')
+            }));
+
+        document.getElementById('generateBtn').textContent =
+            `Genera ${parcheggiData.length} PDF`;
+
+        showStatus(`${parcheggiData.length} nominativi caricati`, 'success');
+    };
+    reader.readAsArrayBuffer(file);
+});
+
+/* GENERAZIONE PDF */
+document.getElementById('generateBtn').addEventListener('click', async () => {
+    if (!pdfBytes) {
+        showStatus('Carica il PDF template', 'error');
+        return;
+    }
+
+    if (parcheggiData.length === 0) {
+        showStatus('Carica il file Excel', 'error');
+        return;
+    }
+
+    const partita = document.getElementById('partita').value;
+    const data = document.getElementById('data').value;
+
+    for (let i = 0; i < parcheggiData.length; i++) {
+        const p = parcheggiData[i];
+
+        const pdfDoc = await PDFDocument.load(pdfBytes);
+        const page = pdfDoc.getPages()[0];
+
+        page.drawText(partita, { x: 195, y: 1312, size: 11, color: rgb(0,0,0) });
+        page.drawText(data, { x: 170, y: 1215, size: 11, color: rgb(0,0,0) });
+        page.drawText(p.PASS, { x: 755, y: 1215, size: 11, color: rgb(0,0,0) });
+        page.drawText(p.NOME, { x: 284, y: 1118, size: 11, color: rgb(0,0,0) });
+
+        const pdfBytesOut = await pdfDoc.save();
+        const blob = new Blob([pdfBytesOut], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Pass_${p.PASS}_${p.NOME}.pdf`;
+        a.click();
+
+        URL.revokeObjectURL(url);
+        await new Promise(r => setTimeout(r, 100));
+    }
+
+    showStatus('Tutti i PDF generati', 'success');
+});
+</script>
+
 </body>
 </html>
