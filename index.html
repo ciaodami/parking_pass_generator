@@ -294,45 +294,6 @@
         reader.readAsArrayBuffer(e.target.files[0]);
     });
 
-    // AGGIORNA ANTEPRIMA LIVE
-    function updatePreview() {
-        if (!bgImage) return;
-
-        const canvas = document.getElementById('previewCanvas');
-        const ctx = canvas.getContext('2d');
-
-        // Scala immagine per anteprima
-        const scale = 0.5;
-        canvas.width = bgImage.width * scale;
-        canvas.height = bgImage.height * scale;
-
-        ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
-
-        const partita = document.getElementById('partita').value || 'Cremonese-Verona';
-        const data = document.getElementById('dataPartita').value || '19/01/2026';
-        const primoSponsor = parcheggiData.length > 0 ? parcheggiData[0].azienda : 'NOME SPONSOR';
-        const primoPass = parcheggiData.length > 0 ? parcheggiData[0].numero : '01';
-
-        ctx.fillStyle = '#000';
-        ctx.font = `bold ${100 * scale}px Helvetica`;
-
-        // GARA (x: 115, y: 175 dall'alto)
-        ctx.fillText(partita, 115 * scale, canvas.height - (175 * scale));
-
-        // DATA (x: 115, y: 125 dall'alto)
-        ctx.fillText(data, 115 * scale, canvas.height - (125 * scale));
-
-        // PASS (x: 385, y: 125 dall'alto)
-        ctx.fillText(primoPass, 385 * scale, canvas.height - (125 * scale));
-
-        // NOME (x: 165, y: 265 dall'alto)
-        ctx.fillText(primoSponsor, 165 * scale, canvas.height - (265 * scale));
-    }
-
-    // Aggiorna anteprima quando cambiano partita/data
-    document.getElementById('partita').addEventListener('input', updatePreview);
-    document.getElementById('dataPartita').addEventListener('input', updatePreview);
-
     // GENERA PDF
     document.getElementById('generateBtn').addEventListener('click', async () => {
         if (!imageBytes) {
@@ -458,6 +419,7 @@
 
 </body>
 </html>
+
 
 
 
