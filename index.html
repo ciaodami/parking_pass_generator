@@ -219,17 +219,7 @@
         </div>
     </div>
 
-    <!-- PANNELLO DESTRA: ANTEPRIMA -->
-    <div class="panel">
-        <h2>👁️ Anteprima Live</h2>
-        <div class="preview-container">
-            <canvas id="previewCanvas"></canvas>
-            <div class="info-text" style="margin-top: 15px;">
-                💡 Anteprima con primo sponsor della lista
-            </div>
-        </div>
-    </div>
-</div>
+  
 
 <script>
     const { PDFDocument, StandardFonts, rgb } = PDFLib;
@@ -336,8 +326,8 @@
 
                 // GARA (x: 320, y: dall'alto 1695)
                 page.drawText(partita, {
-                    x: 600,
-                    y: jpg.height - 1065,
+                    x: 110,
+                    y: jpg.height - 180,
                     size: 100,
                     font: boldFont,
                     color: rgb(0, 0, 0)
@@ -345,8 +335,8 @@
 
                 // DATA (x: 92, y: dall'alto 1540)
                 page.drawText(dataPartita, {
-                    x: 600,
-                    y: jpg.height - 1085,
+                    x: 110,
+                    y: jpg.height - 225,
                     size: 100,
                     font: boldFont,
                     color: rgb(0, 0, 0)
@@ -354,8 +344,8 @@
 
                 // PASS (x: 602, y: dall'alto 1540)
                 page.drawText(p.numero, {
-                    x: 1500,
-                    y: jpg.height - 1085,
+                    x: 385,
+                    y: jpg.height - 225,
                     size: 100,
                     font: boldFont,
                     color: rgb(0, 0, 0)
@@ -363,8 +353,8 @@
 
                 // NOME (x: 320, y: dall'alto 1360)
                 page.drawText(p.azienda, {
-                    x: 730,
-                    y: jpg.height - 1050,
+                    x: 165,
+                    y: jpg.height - 265,
                     size: 100,
                     font: boldFont,
                     color: rgb(0, 0, 0)
@@ -419,6 +409,7 @@
 
 </body>
 </html>
+
 
 
 
