@@ -187,6 +187,36 @@
     </div>
 
     <div class="form-group">
+        <label>
+            <input type="checkbox" id="calibrationMode" style="width: auto; margin-right: 8px;">
+            🎯 Modalità Calibrazione Coordinate
+        </label>
+        <div class="info-text">Attiva per trovare le coordinate esatte cliccando sull'immagine</div>
+    </div>
+
+    <div id="calibrationPanel" style="display: none; background: #fff3cd; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+        <strong style="color: #856404;">📍 Calibrazione Attiva</strong>
+        <div style="margin-top: 10px; font-size: 12px; color: #856404;">
+            Clicca sull'anteprima per vedere le coordinate.<br>
+            Le coordinate verranno copiate automaticamente.
+        </div>
+        <div id="coordDisplay" style="margin-top: 10px; padding: 10px; background: white; border-radius: 4px; font-family: monospace; font-size: 13px; color: #333;">
+            Clicca sull'immagine per vedere le coordinate...
+        </div>
+    </div>
+
+    <div id="previewSection" style="display: none; margin-bottom: 20px;">
+        <label style="margin-bottom: 10px;">👁️ Anteprima</label>
+        <div style="background: #f8f9fa; border: 2px solid #e0e0e0; border-radius: 8px; padding: 15px; position: relative; cursor: crosshair;" id="canvasContainer">
+            <canvas id="previewCanvas" style="max-width: 100%; height: auto; display: block;"></canvas>
+            <div id="crosshair" style="display: none; position: absolute; pointer-events: none;">
+                <div style="position: absolute; width: 100%; height: 1px; background: red; top: 0; left: 0;"></div>
+                <div style="position: absolute; width: 1px; height: 100%; background: red; top: 0; left: 0;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="form-group">
         <label>📷 Immagine JPEG</label>
         <input type="file" id="bgImage" accept="image/jpeg" required>
     </div>
@@ -236,6 +266,16 @@
 
     let imageBytes = null;
     let parcheggiData = [];
+    let bgImage = null;
+    let canvasScale = 1;
+
+    // COORDINATE ATTUALI (modificabili)
+    let coords = {
+        gara: { x: 110, y: 180 },
+        data: { x: 110, y: 225 },
+        pass: { x: 385, y: 225 },
+        nome: { x: 165, y: 265 }
+    };
 
     // CALENDARIO PARTITE IN CASA
     const homeMatches = [
@@ -292,10 +332,107 @@
         const reader = new FileReader();
         reader.onload = ev => {
             imageBytes = ev.target.result;
-            showStatus('✅ Immagine caricata', 'success');
+            const img = new Image();
+            img.onload = () => {
+                bgImage = img;
+                showPreview();
+                showStatus('✅ Immagine caricata', 'success');
+            };
+            img.src = URL.createObjectURL(new Blob([ev.target.result]));
         };
         reader.readAsArrayBuffer(e.target.files[0]);
     });
+
+    // MOSTRA ANTEPRIMA
+    function showPreview() {
+        if (!bgImage) return;
+
+        const previewSection = document.getElementById('previewSection');
+        const canvas = document.getElementById('previewCanvas');
+        const ctx = canvas.getContext('2d');
+
+        previewSection.style.display = 'block';
+
+        // Scala immagine per anteprima
+        canvasScale = 0.4;
+        canvas.width = bgImage.width * canvasScale;
+        canvas.height = bgImage.height * canvasScale;
+
+        ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
+
+        // Disegna testi di esempio
+        const partita = document.getElementById('partita').value || 'Cremonese-Verona';
+        const data = document.getElementById('dataPartita').value || '19/01/2026';
+        const primoSponsor = parcheggiData.length > 0 ? parcheggiData[0].azienda : 'SPONSOR';
+        const primoPass = parcheggiData.length > 0 ? parcheggiData[0].numero : '01';
+
+        ctx.fillStyle = '#000';
+        ctx.font = `bold ${40 * canvasScale}px Helvetica`;
+
+        // Usa coordinate dal sistema
+        ctx.fillText(partita, coords.gara.x * canvasScale, (bgImage.height - coords.gara.y) * canvasScale);
+        ctx.fillText(data, coords.data.x * canvasScale, (bgImage.height - coords.data.y) * canvasScale);
+        ctx.fillText(primoPass, coords.pass.x * canvasScale, (bgImage.height - coords.pass.y) * canvasScale);
+        ctx.fillText(primoSponsor, coords.nome.x * canvasScale, (bgImage.height - coords.nome.y) * canvasScale);
+    }
+
+    // MODALITÀ CALIBRAZIONE
+    document.getElementById('calibrationMode').addEventListener('change', (e) => {
+        const panel = document.getElementById('calibrationPanel');
+        panel.style.display = e.target.checked ? 'block' : 'none';
+        
+        if (e.target.checked && !bgImage) {
+            showStatus('⚠️ Carica prima un\'immagine per calibrare', 'error');
+            e.target.checked = false;
+            panel.style.display = 'none';
+        }
+    });
+
+    // CLICK SU CANVAS PER COORDINATE
+    document.getElementById('previewCanvas').addEventListener('click', (e) => {
+        if (!document.getElementById('calibrationMode').checked) return;
+
+        const canvas = document.getElementById('previewCanvas');
+        const rect = canvas.getBoundingClientRect();
+        
+        // Coordinate relative al canvas
+        const canvasX = e.clientX - rect.left;
+        const canvasY = e.clientY - rect.top;
+
+        // Converti in coordinate PDF (origine in basso a sinistra)
+        const pdfX = Math.round(canvasX / canvasScale);
+        const pdfY = Math.round((canvas.height - canvasY) / canvasScale);
+
+        // Mostra coordinate
+        const coordDisplay = document.getElementById('coordDisplay');
+        coordDisplay.innerHTML = `
+            <strong style="color: #9e2a2b;">📍 Coordinate PDF:</strong><br>
+            <strong>X: ${pdfX}</strong> | <strong>Y: ${pdfY}</strong><br>
+            <div style="margin-top: 8px; padding: 8px; background: #f0f0f0; border-radius: 4px; font-size: 11px;">
+                <strong>Codice da copiare:</strong><br>
+                x: ${pdfX}, y: jpg.height - ${bgImage.height - pdfY}
+            </div>
+        `;
+
+        // Copia coordinate negli appunti
+        const coordText = `x: ${pdfX}, y: jpg.height - ${bgImage.height - pdfY}`;
+        navigator.clipboard.writeText(coordText).then(() => {
+            showStatus('📋 Coordinate copiate negli appunti!', 'success');
+            setTimeout(() => {
+                document.getElementById('status').style.display = 'none';
+            }, 2000);
+        });
+
+        // Mostra crosshair
+        const crosshair = document.getElementById('crosshair');
+        crosshair.style.display = 'block';
+        crosshair.style.left = canvasX + 'px';
+        crosshair.style.top = canvasY + 'px';
+    });
+
+    // Aggiorna anteprima quando cambiano i campi
+    document.getElementById('partita').addEventListener('input', showPreview);
+    document.getElementById('dataPartita').addEventListener('input', showPreview);
 
     document.getElementById('excelFile').addEventListener('change', e => {
         const reader = new FileReader();
@@ -321,6 +458,7 @@
                 }
                 
                 showStatus(`✅ ${parcheggiData.length} sponsor caricati`, 'success');
+                showPreview(); // Aggiorna anteprima con dati
             } catch (err) {
                 showStatus('❌ Errore Excel: ' + err.message, 'error');
             }
