@@ -1,550 +1,385 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
-import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
-import * as XLSX from 'xlsx';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Progress } from '@/components/ui/progress';
-
-interface Sponsor {
-  azienda: string;
-  numero: string;
-}
-
-interface Coordinates {
-  gara: { x: number; y: number };
-  data: { x: number; y: number };
-  pass: { x: number; y: number };
-  nome: { x: number; y: number };
-}
-
-// Home matches calendar
-const homeMatches = [
-  { opponent: "Verona", date: "19/01/2026", time: "18:30" },
-  { opponent: "Inter", date: "01/02/2026", time: "15:00" },
-  { opponent: "Genoa", date: "15/02/2026", time: "15:00" },
-  { opponent: "Milan", date: "01/03/2026", time: "15:00" },
-  { opponent: "Fiorentina", date: "15/03/2026", time: "15:00" },
-  { opponent: "Bologna", date: "04/04/2026", time: "15:00" },
-  { opponent: "Torino", date: "19/04/2026", time: "15:00" },
-  { opponent: "Lazio", date: "03/05/2026", time: "15:00" },
-  { opponent: "Pisa", date: "10/05/2026", time: "15:00" },
-  { opponent: "Como", date: "25/05/2026", time: "15:00" }
-];
-
-function parseItalianDate(dateStr: string): Date {
-  const [day, month, year] = dateStr.split('/');
-  return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-}
-
-function getNextMatch() {
-  const today = new Date();
-  for (const match of homeMatches) {
-    const matchDate = parseItalianDate(match.date);
-    if (matchDate >= today) {
-      return match;
-    }
-  }
-  return homeMatches[homeMatches.length - 1];
-}
-
-export default function PassGenerator() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [imageBytes, setImageBytes] = useState<ArrayBuffer | null>(null);
-  const [bgImage, setBgImage] = useState<HTMLImageElement | null>(null);
-  const [parcheggiData, setParcheggiData] = useState<Sponsor[]>([]);
-  const [partita, setPartita] = useState('');
-  const [dataPartita, setDataPartita] = useState('');
-  const [singlePass, setSinglePass] = useState('');
-  const [calibrationMode, setCalibrationMode] = useState(false);
-  const [status, setStatus] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
-  const [progress, setProgress] = useState<number | null>(null);
-  const [progressText, setProgressText] = useState('');
-  const [clickedCoord, setClickedCoord] = useState<string>('Clicca sull\'immagine per vedere le coordinate...');
-  const [isGenerating, setIsGenerating] = useState(false);
-
-  // Coordinates for text placement - these are in PDF coordinate system (origin bottom-left)
-  // The y value represents distance from BOTTOM of image
-  // Adjusted based on reference image - text appears right after ">" arrows
-  const [coords] = useState<Coordinates>({
-    gara: { x: 190, y: 2990 },    // After "GARA>" - near top
-    data: { x: 190, y: 2910 },    // After "DATA>" - below GARA
-    pass: { x: 666, y: 2910 },    // After "N. PASS>" - same row as DATA
-    nome: { x: 285, y: 2830 }     // After "NOMINATIVO>" - below DATA
-  });
-
-  // Initialize with next match
-  useEffect(() => {
-    const next = getNextMatch();
-    setPartita(`Cremonese-${next.opponent}`);
-    setDataPartita(next.date);
-  }, []);
-
-  const showStatus = (message: string, type: 'success' | 'error') => {
-    setStatus({ message, type });
-  };
-
-  // Handle image upload
-  const handleImageUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const result = ev.target?.result as ArrayBuffer;
-      setImageBytes(result);
-
-      const img = new Image();
-      img.onload = () => {
-        setBgImage(img);
-        showStatus('✅ Immagine caricata', 'success');
-      };
-      img.src = URL.createObjectURL(new Blob([result]));
-    };
-    reader.readAsArrayBuffer(file);
-  }, []);
-
-  // Handle Excel upload
-  const handleExcelUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      try {
-        const data = new Uint8Array(ev.target?.result as ArrayBuffer);
-        const wb = XLSX.read(data, { type: 'array' });
-        const sheet = wb.Sheets['Lista'];
-        
-        if (!sheet) {
-          showStatus('❌ Foglio "Lista" non trovato', 'error');
-          return;
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <title>Generatore Pass PDF - US Cremonese</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #6b6b6b 0%, #9e2a2b 50%, #6b6b6b 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
-
-        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as unknown[][];
-        const sponsors: Sponsor[] = rows
-          .filter(r => r[0] && r[2])
-          .map(r => ({
-            azienda: String(r[0]).trim(),
-            numero: String(r[2]).trim()
-          }));
-
-        if (sponsors.length === 0) {
-          showStatus('❌ Nessun dato valido', 'error');
-          return;
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+            max-width: 500px;
+            width: 100%;
+            padding: 40px;
         }
-
-        setParcheggiData(sponsors);
-        showStatus(`✅ ${sponsors.length} sponsor caricati`, 'success');
-      } catch (err) {
-        showStatus('❌ Errore Excel: ' + (err as Error).message, 'error');
-      }
-    };
-    reader.readAsArrayBuffer(file);
-  }, []);
-
-  // Draw preview on canvas
-  useEffect(() => {
-    if (!bgImage || !canvasRef.current) return;
-
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const scale = 0.4;
-    canvas.width = bgImage.width * scale;
-    canvas.height = bgImage.height * scale;
-
-    ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
-
-    // Draw sample texts
-    const samplePartita = partita || 'Cremonese-Verona';
-    const sampleData = dataPartita || '19/01/2026';
-    const sampleNome = parcheggiData.length > 0 ? parcheggiData[0].azienda : 'SPONSOR';
-    const samplePass = parcheggiData.length > 0 ? parcheggiData[0].numero : '01';
-
-    ctx.fillStyle = '#000';
-    ctx.font = `bold ${40 * scale}px Helvetica`;
-
-    // Convert PDF coordinates (origin bottom-left) to canvas coordinates (origin top-left)
-    // For canvas: y = imageHeight - pdfY
-    ctx.fillText(samplePartita, coords.gara.x * scale, (bgImage.height - coords.gara.y) * scale);
-    ctx.fillText(sampleData, coords.data.x * scale, (bgImage.height - coords.data.y) * scale);
-    ctx.fillText(samplePass, coords.pass.x * scale, (bgImage.height - coords.pass.y) * scale);
-    ctx.fillText(sampleNome, coords.nome.x * scale, (bgImage.height - coords.nome.y) * scale);
-  }, [bgImage, partita, dataPartita, parcheggiData, coords]);
-
-  // Handle canvas click for calibration
-  const handleCanvasClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!calibrationMode || !bgImage || !canvasRef.current) return;
-
-    const canvas = canvasRef.current;
-    const rect = canvas.getBoundingClientRect();
-    const scale = 0.4;
-
-    // Get click position relative to canvas
-    const canvasX = e.clientX - rect.left;
-    const canvasY = e.clientY - rect.top;
-
-    // Convert to actual image coordinates
-    const imageX = Math.round(canvasX / scale);
-    const imageY = Math.round(canvasY / scale);
-
-    // Convert to PDF coordinates (origin at bottom-left)
-    const pdfX = imageX;
-    const pdfY = bgImage.height - imageY;
-
-    const coordText = `Canvas: (${imageX}, ${imageY}) | PDF: x=${pdfX}, y=${pdfY}`;
-    setClickedCoord(coordText);
-
-    // Copy to clipboard
-    navigator.clipboard.writeText(`{ x: ${pdfX}, y: ${pdfY} }`);
-  }, [calibrationMode, bgImage]);
-
-  // Generate single PDF
-  const generateSinglePDF = useCallback(async (azienda: string, numero: string): Promise<boolean> => {
-    if (!imageBytes) return false;
-    if (!partita.trim() || !dataPartita.trim()) {
-      showStatus('❌ Compila partita e data', 'error');
-      return false;
-    }
-
-    try {
-      const pdfDoc = await PDFDocument.create();
-      const jpg = await pdfDoc.embedJpg(imageBytes);
-
-      const page = pdfDoc.addPage([jpg.width, jpg.height]);
-      page.drawImage(jpg, { x: 0, y: 0, width: jpg.width, height: jpg.height });
-
-      const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-
-      // IMPORTANT: In PDF, y=0 is at the BOTTOM
-      // coords.y is already the distance from bottom, so we use it directly
-
-      // GARA - using coords object
-      page.drawText(partita, {
-        x: coords.gara.x,
-        y: coords.gara.y,
-        size: 100,
-        font: boldFont,
-        color: rgb(0, 0, 0)
-      });
-
-      // DATA
-      page.drawText(dataPartita, {
-        x: coords.data.x,
-        y: coords.data.y,
-        size: 100,
-        font: boldFont,
-        color: rgb(0, 0, 0)
-      });
-
-      // PASS
-      page.drawText(numero, {
-        x: coords.pass.x,
-        y: coords.pass.y,
-        size: 100,
-        font: boldFont,
-        color: rgb(0, 0, 0)
-      });
-
-      // NOME
-      page.drawText(azienda, {
-        x: coords.nome.x,
-        y: coords.nome.y,
-        size: 100,
-        font: boldFont,
-        color: rgb(0, 0, 0)
-      });
-
-      const pdfBytes = await pdfDoc.save();
-      const blob = new Blob([new Uint8Array(pdfBytes)], { type: 'application/pdf' });
-      const url = URL.createObjectURL(blob);
-
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Pass_${numero}_${azienda}.pdf`;
-      a.click();
-
-      URL.revokeObjectURL(url);
-      return true;
-    } catch (error) {
-      console.error('PDF generation error:', error);
-      return false;
-    }
-  }, [imageBytes, partita, dataPartita, coords]);
-
-  // Generate single pass
-  const handleGenerateSingle = useCallback(async () => {
-    if (!imageBytes) {
-      showStatus('❌ Carica l\'immagine', 'error');
-      return;
-    }
-
-    const search = singlePass.trim();
-    if (!search) {
-      showStatus('❌ Inserisci nome o numero pass', 'error');
-      return;
-    }
-
-    setIsGenerating(true);
-
-    try {
-      let found = parcheggiData.find(p =>
-        p.numero.toLowerCase() === search.toLowerCase() ||
-        p.azienda.toLowerCase().includes(search.toLowerCase())
-      );
-
-      let azienda: string, numero: string;
-
-      if (found) {
-        azienda = found.azienda;
-        numero = found.numero;
-      } else {
-        if (/^\d+$/.test(search)) {
-          numero = search.padStart(2, '0');
-          azienda = 'NUOVO PASS';
-        } else {
-          azienda = search.toUpperCase();
-          const maxNum = Math.max(...parcheggiData.map(p => parseInt(p.numero) || 0), 0);
-          numero = String(maxNum + 1).padStart(2, '0');
+        h1 {
+            color: #9e2a2b;
+            margin-bottom: 10px;
+            font-size: 24px;
+            text-align: center;
         }
-      }
+        .subtitle {
+            text-align: center;
+            color: #6b6b6b;
+            font-size: 13px;
+            margin-bottom: 30px;
+            font-weight: 600;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        input[type="file"],
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        input:focus {
+            outline: none;
+            border-color: #9e2a2b;
+            box-shadow: 0 0 0 3px rgba(158, 42, 43, 0.1);
+        }
+        .info-text {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+        .next-match {
+            background: linear-gradient(135deg, #9e2a2b 0%, #c93a3b 100%);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .next-match strong {
+            font-size: 16px;
+            display: block;
+            margin-bottom: 5px;
+        }
+        .next-match small {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+        button {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 15px;
+            margin-top: 10px;
+        }
+        .btn-generate-all {
+            background: linear-gradient(135deg, #9e2a2b 0%, #c93a3b 100%);
+            color: white;
+        }
+        .btn-generate-all:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(158, 42, 43, 0.3);
+        }
+        .btn-generate-single {
+            background: linear-gradient(135deg, #6b6b6b 0%, #8b8b8b 100%);
+            color: white;
+        }
+        .btn-generate-single:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(107, 107, 107, 0.3);
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .btn-reset {
+            background: #f0f0f0;
+            color: #333;
+        }
+        .btn-reset:hover {
+            background: #e0e0e0;
+        }
+        .status {
+            padding: 12px;
+            border-radius: 6px;
+            margin-top: 15px;
+            font-size: 13px;
+            text-align: center;
+            display: none;
+        }
+        .status.success {
+            background: #e8f5e9;
+            color: #2e7d32;
+            display: block;
+        }
+        .status.error {
+            background: #ffebee;
+            color: #c62828;
+            display: block;
+        }
+        .progress {
+            margin-top: 15px;
+            display: none;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #9e2a2b 0%, #c93a3b 100%);
+            width: 0%;
+            transition: width 0.3s;
+        }
+        .divider {
+            border-top: 2px solid #e0e0e0;
+            margin: 25px 0;
+            position: relative;
+        }
+        .divider span {
+            position: absolute;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            padding: 0 10px;
+            color: #999;
+            font-size: 12px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
 
-      const success = await generateSinglePDF(azienda, numero);
-      if (success) {
-        showStatus(`✅ Pass generato: ${numero} - ${azienda}`, 'success');
-      }
-    } catch (error) {
-      showStatus('❌ Errore: ' + (error as Error).message, 'error');
-    } finally {
-      setIsGenerating(false);
-    }
-  }, [imageBytes, singlePass, parcheggiData, generateSinglePDF]);
+<div class="container">
+    <h1>🎫 Generatore Pass PDF</h1>
+    <p class="subtitle">US Cremonese • Parcheggi 2025-26</p>
 
-  // Generate all passes
-  const handleGenerateAll = useCallback(async () => {
-    if (!imageBytes) {
-      showStatus('❌ Carica l\'immagine', 'error');
-      return;
-    }
-
-    if (parcheggiData.length === 0) {
-      showStatus('❌ Carica l\'Excel', 'error');
-      return;
-    }
-
-    setIsGenerating(true);
-    setProgress(0);
-    setStatus(null);
-
-    try {
-      for (let i = 0; i < parcheggiData.length; i++) {
-        const p = parcheggiData[i];
-        await generateSinglePDF(p.azienda, p.numero);
-
-        const percent = ((i + 1) / parcheggiData.length) * 100;
-        setProgress(percent);
-        setProgressText(`${i + 1} / ${parcheggiData.length} PDF (${Math.round(percent)}%)`);
-
-        await new Promise(r => setTimeout(r, 100));
-      }
-
-      showStatus(`✅ ${parcheggiData.length} PDF generati!`, 'success');
-      setProgress(null);
-    } catch (error) {
-      showStatus('❌ Errore: ' + (error as Error).message, 'error');
-    } finally {
-      setIsGenerating(false);
-    }
-  }, [imageBytes, parcheggiData, generateSinglePDF]);
-
-  // Reset form
-  const resetForm = () => {
-    setImageBytes(null);
-    setBgImage(null);
-    setParcheggiData([]);
-    setSinglePass('');
-    setStatus(null);
-    setProgress(null);
-    const next = getNextMatch();
-    setPartita(`Cremonese-${next.opponent}`);
-    setDataPartita(next.date);
-  };
-
-  const nextMatch = getNextMatch();
-
-  return (
-    <div className="min-h-screen flex items-center justify-center p-5">
-      <Card className="w-full max-w-lg shadow-2xl">
-        <CardHeader className="text-center pb-4">
-          <CardTitle className="text-2xl text-primary">🎫 Generatore Pass PDF</CardTitle>
-          <p className="text-sm font-semibold text-muted-foreground">US Cremonese • Parcheggi 2025-26</p>
-        </CardHeader>
-        
-        <CardContent className="space-y-5">
-          {/* Next Match Banner */}
-          <div className="gradient-primary text-primary-foreground p-4 rounded-lg text-center">
-            <strong className="block text-base mb-1">🏟️ Prossima partita in casa</strong>
-            <span className="text-sm opacity-90">
-              Cremonese-{nextMatch.opponent}<br/>{nextMatch.date} ore {nextMatch.time}
-            </span>
-          </div>
-
-          {/* Calibration Mode */}
-          <div className="flex items-center space-x-2">
-            <Checkbox 
-              id="calibration" 
-              checked={calibrationMode}
-              onCheckedChange={(checked) => setCalibrationMode(checked as boolean)}
-            />
-            <Label htmlFor="calibration" className="text-sm">
-              🎯 Modalità Calibrazione Coordinate
-            </Label>
-          </div>
-
-          {calibrationMode && (
-            <div className="bg-amber-50 border border-amber-200 p-4 rounded-lg">
-              <strong className="text-amber-700 block mb-2">📍 Calibrazione Attiva</strong>
-              <p className="text-xs text-amber-600 mb-3">
-                Clicca sull'anteprima per vedere le coordinate. Verranno copiate automaticamente.
-              </p>
-              <code className="block bg-white p-2 rounded text-xs font-mono text-foreground">
-                {clickedCoord}
-              </code>
-            </div>
-          )}
-
-          {/* Preview Canvas */}
-          {bgImage && (
-            <div className="space-y-2">
-              <Label>👁️ Anteprima</Label>
-              <div 
-                className="bg-muted border-2 border-border rounded-lg p-4"
-                style={{ cursor: calibrationMode ? 'crosshair' : 'default' }}
-              >
-                <canvas 
-                  ref={canvasRef}
-                  onClick={handleCanvasClick}
-                  className="max-w-full h-auto block mx-auto"
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Image Upload */}
-          <div className="space-y-2">
-            <Label htmlFor="bgImage">📷 Immagine JPEG</Label>
-            <Input 
-              id="bgImage" 
-              type="file" 
-              accept="image/jpeg"
-              onChange={handleImageUpload}
-            />
-          </div>
-
-          {/* Excel Upload */}
-          <div className="space-y-2">
-            <Label htmlFor="excelFile">📊 File Excel</Label>
-            <Input 
-              id="excelFile" 
-              type="file" 
-              accept=".xlsx"
-              onChange={handleExcelUpload}
-            />
-            <p className="text-xs text-muted-foreground">Foglio "Lista" | ColA=Nome | ColC=Pass</p>
-          </div>
-
-          {/* Match Info */}
-          <div className="space-y-2">
-            <Label htmlFor="partita">🎯 Partita</Label>
-            <Input 
-              id="partita" 
-              value={partita}
-              onChange={(e) => setPartita(e.target.value)}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="dataPartita">📅 Data</Label>
-            <Input 
-              id="dataPartita" 
-              value={dataPartita}
-              onChange={(e) => setDataPartita(e.target.value)}
-            />
-          </div>
-
-          {/* Generate All Button */}
-          <Button 
-            className="w-full gradient-primary"
-            onClick={handleGenerateAll}
-            disabled={isGenerating}
-          >
-            ⚡ Genera Tutti i Pass
-          </Button>
-
-          {/* Divider */}
-          <div className="relative py-4">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t-2 border-border" />
-            </div>
-            <div className="relative flex justify-center text-xs">
-              <span className="bg-card px-3 text-muted-foreground font-semibold">OPPURE</span>
-            </div>
-          </div>
-
-          {/* Single Pass */}
-          <div className="space-y-2">
-            <Label htmlFor="singlePass">🔍 Genera Pass Singolo</Label>
-            <Input 
-              id="singlePass" 
-              value={singlePass}
-              onChange={(e) => setSinglePass(e.target.value)}
-              placeholder="Inserisci nome azienda o numero pass"
-            />
-            <p className="text-xs text-muted-foreground">Es: "ILFER" oppure "01"</p>
-          </div>
-
-          <Button 
-            className="w-full gradient-secondary"
-            onClick={handleGenerateSingle}
-            disabled={isGenerating}
-          >
-            📄 Genera Pass Singolo
-          </Button>
-
-          {/* Reset Button */}
-          <Button 
-            variant="outline"
-            className="w-full"
-            onClick={resetForm}
-          >
-            🔄 Ripristina
-          </Button>
-
-          {/* Status */}
-          {status && (
-            <div className={`p-3 rounded-md text-center text-sm ${
-              status.type === 'success' 
-                ? 'bg-green-50 text-green-700 border border-green-200' 
-                : 'bg-red-50 text-red-700 border border-red-200'
-            }`}>
-              {status.message}
-            </div>
-          )}
-
-          {/* Progress */}
-          {progress !== null && (
-            <div className="space-y-2">
-              <Progress value={progress} className="h-2" />
-              <p className="text-xs text-center text-muted-foreground">{progressText}</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+    <div class="next-match" id="nextMatch">
+        <strong>🏟️ Prossima partita in casa</strong>
+        <div id="matchInfo">Cremonese-Verona<br>19/01/2026 ore 18:30</div>
     </div>
-  );
-}
 
+    <div class="form-group">
+        <label>
+            <input type="checkbox" id="calibrationMode" style="width: auto; margin-right: 8px;">
+            🎯 Modalità Calibrazione Coordinate
+        </label>
+        <div class="info-text">Attiva per trovare le coordinate esatte cliccando sull'immagine</div>
+    </div>
+
+    <div id="calibrationPanel" style="display: none; background: #fff3cd; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+        <strong style="color: #856404;">📍 Calibrazione Attiva</strong>
+        <div style="margin-top: 10px; font-size: 12px; color: #856404;">
+            Clicca sull'anteprima per vedere le coordinate.<br>
+            Le coordinate verranno copiate automaticamente.
+        </div>
+        <div id="coordDisplay" style="margin-top: 10px; padding: 10px; background: white; border-radius: 4px; font-family: monospace; font-size: 13px; color: #333;">
+            Clicca sull'immagine per vedere le coordinate...
+        </div>
+    </div>
+
+    <div id="previewSection" style="display: none; margin-bottom: 20px;">
+        <label style="margin-bottom: 10px;">👁️ Anteprima</label>
+        <div style="background: #f8f9fa; border: 2px solid #e0e0e0; border-radius: 8px; padding: 15px; position: relative; cursor: crosshair;" id="canvasContainer">
+            <canvas id="previewCanvas" style="max-width: 100%; height: auto; display: block;"></canvas>
+            <div id="crosshair" style="display: none; position: absolute; pointer-events: none;">
+                <div style="position: absolute; width: 100%; height: 1px; background: red; top: 0; left: 0;"></div>
+                <div style="position: absolute; width: 1px; height: 100%; background: red; top: 0; left: 0;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label>📷 Immagine JPEG</label>
+        <input type="file" id="bgImage" accept="image/jpeg" required>
+    </div>
+
+    <div class="form-group">
+        <label>📊 File Excel</label>
+        <input type="file" id="excelFile" accept=".xlsx" required>
+        <div class="info-text">Foglio "Lista" | ColA=Nome | ColC=Pass</div>
+    </div>
+
+    <div class="form-group">
+        <label>🎯 Partita</label>
+        <input type="text" id="partita" value="Cremonese-Verona">
+    </div>
+
+    <div class="form-group">
+        <label>📅 Data</label>
+        <input type="text" id="dataPartita" value="19/01/2026">
+    </div>
+
+    <button class="btn-generate-all" id="generateAllBtn">⚡ Genera Tutti i Pass</button>
+
+    <div class="divider"><span>OPPURE</span></div>
+
+    <div class="form-group">
+        <label>🔍 Genera Pass Singolo</label>
+        <input type="text" id="singlePass" placeholder="Inserisci nome azienda o numero pass">
+        <div class="info-text">Es: "ILFER" oppure "01"</div>
+    </div>
+
+    <button class="btn-generate-single" id="generateSingleBtn">📄 Genera Pass Singolo</button>
+
+    <button class="btn-reset" onclick="resetForm()">🔄 Ripristina</button>
+
+    <div id="status" class="status"></div>
+
+    <div class="progress" id="progress">
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+        <div id="statusInfo" class="info-text" style="margin-top: 10px; text-align: center;"></div>
+    </div>
+</div>
+
+<script>
+    const { PDFDocument, StandardFonts, rgb } = PDFLib;
+
+    let imageBytes = null;
+    let parcheggiData = [];
+    let bgImage = null;
+    let canvasScale = 1;
+
+    // COORDINATE ATTUALI (modificabili)
+    let coords = {
+        gara: { x: 195, y: 1312 },
+        data: { x: 170, y: 1215 },
+        pass: { x: 755, y: 1215 },
+        nome: { x: 284, y: 1118 }
+ const coords = {
+    gara: { x: 195, y: 1312 },    // Dopo "GARA"
+    data: { x: 170, y: 1215 },    // Dopo "DATA"
+    pass: { x: 755, y: 1215 },    // Dopo "N. PASS"
+    nome: { x: 284, y: 1118 }     // Dopo "NOMINATIVO"
+    };
+
+    // CALENDARIO PARTITE IN CASA
+@@ -376,59 +376,7 @@
+        ctx.fillText(primoSponsor, coords.nome.x * canvasScale, (bgImage.height - coords.nome.y) * canvasScale);
+    }
+
+    // MODALITÀ CALIBRAZIONE
+    document.getElementById('calibrationMode').addEventListener('change', (e) => {
+        const panel = document.getElementById('calibrationPanel');
+        panel.style.display = e.target.checked ? 'block' : 'none';
+        
+        if (e.target.checked && !bgImage) {
+            showStatus('⚠️ Carica prima un\'immagine per calibrare', 'error');
+            e.target.checked = false;
+            panel.style.display = 'none';
+        }
+    });
+
+    // CLICK SU CANVAS PER COORDINATE
+    document.getElementById('previewCanvas').addEventListener('click', (e) => {
+        if (!document.getElementById('calibrationMode').checked) return;
+
+        const canvas = document.getElementById('previewCanvas');
+        const rect = canvas.getBoundingClientRect();
+        
+        // Coordinate relative al canvas
+        const canvasX = e.clientX - rect.left;
+        const canvasY = e.clientY - rect.top;
+
+        // Converti in coordinate PDF (origine in basso a sinistra)
+        const pdfX = Math.round(canvasX / canvasScale);
+        const pdfY = Math.round((canvas.height - canvasY) / canvasScale);
+
+        // Mostra coordinate
+        const coordDisplay = document.getElementById('coordDisplay');
+        coordDisplay.innerHTML = `
+            <strong style="color: #9e2a2b;">📍 Coordinate PDF:</strong><br>
+            <strong>X: ${pdfX}</strong> | <strong>Y: ${pdfY}</strong><br>
+            <div style="margin-top: 8px; padding: 8px; background: #f0f0f0; border-radius: 4px; font-size: 11px;">
+                <strong>Codice da copiare:</strong><br>
+                x: ${pdfX}, y: jpg.height - ${bgImage.height - pdfY}
+            </div>
+        `;
+
+        // Copia coordinate negli appunti
+        const coordText = `x: ${pdfX}, y: jpg.height - ${bgImage.height - pdfY}`;
+        navigator.clipboard.writeText(coordText).then(() => {
+            showStatus('📋 Coordinate copiate negli appunti!', 'success');
+            setTimeout(() => {
+                document.getElementById('status').style.display = 'none';
+            }, 2000);
+        });
+
+        // Mostra crosshair
+        const crosshair = document.getElementById('crosshair');
+        crosshair.style.display = 'block';
+        crosshair.style.left = canvasX + 'px';
+        crosshair.style.top = canvasY + 'px';
+    });
+
+    // Aggiorna anteprima quando cambiano i campi
+    document.getElementById('partita').addEventListener('input', showPreview);
+@@ -486,35 +434,35 @@
+
+        // GARA
+        page.drawText(partita, {
+            x: 160,
+            y: jpg.height - 1540,
+            size: 100,
+            font: boldFont,
+            color: rgb(0, 0, 0)
+        });
+
+        // DATA
+        page.drawText(dataPartita, {
+            x: 145,
+            y: jpg.height - 1440,
+            size: 100,
+            font: boldFont,
+            color: rgb(0, 0, 0)
+        });
+
+        // PASS
+        page.drawText(numero, {
+            x: 540,
+            y: jpg.height - 1440,
+            size: 100,
+            font: boldFont,
+            color: rgb(0, 0, 0)
+        });
+
+        // NOME
+        page.drawText(azienda, {
+            x: 285,
+            y: jpg.height - 1118,
+            size: 100,
+            font: boldFont,
+            color: rgb(0, 0, 0)
+@@ -642,3 +590,4 @@
+
+</body>
+</html>
