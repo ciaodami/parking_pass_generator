@@ -270,11 +270,11 @@
     let canvasScale = 1;
 
     // COORDINATE ATTUALI (modificabili)
-    let coords = {
-        gara: { x: 110, y: 180 },
-        data: { x: 110, y: 225 },
-        pass: { x: 385, y: 225 },
-        nome: { x: 165, y: 265 }
+ const coords = {
+    gara: { x: 195, y: 1312 },    // Dopo "GARA"
+    data: { x: 170, y: 1215 },    // Dopo "DATA"
+    pass: { x: 755, y: 1215 },    // Dopo "N. PASS"
+    nome: { x: 284, y: 1118 }     // Dopo "NOMINATIVO"
     };
 
     // CALENDARIO PARTITE IN CASA
@@ -376,59 +376,7 @@
         ctx.fillText(primoSponsor, coords.nome.x * canvasScale, (bgImage.height - coords.nome.y) * canvasScale);
     }
 
-    // MODALITÀ CALIBRAZIONE
-    document.getElementById('calibrationMode').addEventListener('change', (e) => {
-        const panel = document.getElementById('calibrationPanel');
-        panel.style.display = e.target.checked ? 'block' : 'none';
-        
-        if (e.target.checked && !bgImage) {
-            showStatus('⚠️ Carica prima un\'immagine per calibrare', 'error');
-            e.target.checked = false;
-            panel.style.display = 'none';
-        }
-    });
 
-    // CLICK SU CANVAS PER COORDINATE
-    document.getElementById('previewCanvas').addEventListener('click', (e) => {
-        if (!document.getElementById('calibrationMode').checked) return;
-
-        const canvas = document.getElementById('previewCanvas');
-        const rect = canvas.getBoundingClientRect();
-        
-        // Coordinate relative al canvas
-        const canvasX = e.clientX - rect.left;
-        const canvasY = e.clientY - rect.top;
-
-        // Converti in coordinate PDF (origine in basso a sinistra)
-        const pdfX = Math.round(canvasX / canvasScale);
-        const pdfY = Math.round((canvas.height - canvasY) / canvasScale);
-
-        // Mostra coordinate
-        const coordDisplay = document.getElementById('coordDisplay');
-        coordDisplay.innerHTML = `
-            <strong style="color: #9e2a2b;">📍 Coordinate PDF:</strong><br>
-            <strong>X: ${pdfX}</strong> | <strong>Y: ${pdfY}</strong><br>
-            <div style="margin-top: 8px; padding: 8px; background: #f0f0f0; border-radius: 4px; font-size: 11px;">
-                <strong>Codice da copiare:</strong><br>
-                x: ${pdfX}, y: jpg.height - ${bgImage.height - pdfY}
-            </div>
-        `;
-
-        // Copia coordinate negli appunti
-        const coordText = `x: ${pdfX}, y: jpg.height - ${bgImage.height - pdfY}`;
-        navigator.clipboard.writeText(coordText).then(() => {
-            showStatus('📋 Coordinate copiate negli appunti!', 'success');
-            setTimeout(() => {
-                document.getElementById('status').style.display = 'none';
-            }, 2000);
-        });
-
-        // Mostra crosshair
-        const crosshair = document.getElementById('crosshair');
-        crosshair.style.display = 'block';
-        crosshair.style.left = canvasX + 'px';
-        crosshair.style.top = canvasY + 'px';
-    });
 
     // Aggiorna anteprima quando cambiano i campi
     document.getElementById('partita').addEventListener('input', showPreview);
@@ -486,8 +434,8 @@
 
         // GARA
         page.drawText(partita, {
-            x: 110,
-            y: jpg.height - 180,
+            x: 195,
+            y: jpg.height - 1312,
             size: 100,
             font: boldFont,
             color: rgb(0, 0, 0)
@@ -495,8 +443,8 @@
 
         // DATA
         page.drawText(dataPartita, {
-            x: 110,
-            y: jpg.height - 225,
+            x: 170,
+            y: jpg.height - 1215,
             size: 100,
             font: boldFont,
             color: rgb(0, 0, 0)
@@ -504,8 +452,8 @@
 
         // PASS
         page.drawText(numero, {
-            x: 385,
-            y: jpg.height - 225,
+            x: 755,
+            y: jpg.height - 1215,
             size: 100,
             font: boldFont,
             color: rgb(0, 0, 0)
@@ -513,8 +461,8 @@
 
         // NOME
         page.drawText(azienda, {
-            x: 165,
-            y: jpg.height - 265,
+            x: 284,
+            y: jpg.height - 1118,
             size: 100,
             font: boldFont,
             color: rgb(0, 0, 0)
@@ -642,3 +590,4 @@
 
 </body>
 </html>
+
