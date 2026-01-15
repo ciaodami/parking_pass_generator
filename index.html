@@ -1,9 +1,8 @@
-
 <!DOCTYPE html>
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>Generatore Pass PDF - Parcheggi 25-26</title>
+    <title>Generatore Pass PDF - US Cremonese</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -11,29 +10,33 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #6b6b6b 0%, #9e2a2b 50%, #6b6b6b 100%);
             min-height: 100vh;
             padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
-        .wrapper {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            max-width: 1400px;
-            margin: auto;
-        }
-        .panel {
+        .container {
             background: white;
             border-radius: 12px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+            max-width: 500px;
+            width: 100%;
+            padding: 40px;
         }
-        h2 {
-            color: #333;
-            margin-bottom: 20px;
-            font-size: 22px;
-            border-bottom: 3px solid #667eea;
-            padding-bottom: 10px;
+        h1 {
+            color: #9e2a2b;
+            margin-bottom: 10px;
+            font-size: 24px;
+            text-align: center;
+        }
+        .subtitle {
+            text-align: center;
+            color: #6b6b6b;
+            font-size: 13px;
+            margin-bottom: 30px;
+            font-weight: 600;
         }
         .form-group {
             margin-bottom: 20px;
@@ -56,16 +59,33 @@
         }
         input:focus {
             outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            border-color: #9e2a2b;
+            box-shadow: 0 0 0 3px rgba(158, 42, 43, 0.1);
         }
-        .button-group {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            margin-top: 25px;
+        .info-text {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+        .next-match {
+            background: linear-gradient(135deg, #9e2a2b 0%, #c93a3b 100%);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .next-match strong {
+            font-size: 16px;
+            display: block;
+            margin-bottom: 5px;
+        }
+        .next-match small {
+            font-size: 12px;
+            opacity: 0.9;
         }
         button {
+            width: 100%;
             padding: 14px;
             border: none;
             border-radius: 6px;
@@ -73,25 +93,33 @@
             cursor: pointer;
             transition: all 0.3s;
             font-size: 15px;
+            margin-top: 10px;
         }
-        .btn-generate {
-            grid-column: 1 / -1;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        .btn-generate-all {
+            background: linear-gradient(135deg, #9e2a2b 0%, #c93a3b 100%);
             color: white;
         }
-        .btn-generate:hover:not(:disabled) {
+        .btn-generate-all:hover:not(:disabled) {
             transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+            box-shadow: 0 10px 20px rgba(158, 42, 43, 0.3);
         }
-        .btn-generate:disabled {
+        .btn-generate-single {
+            background: linear-gradient(135deg, #6b6b6b 0%, #8b8b8b 100%);
+            color: white;
+        }
+        .btn-generate-single:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(107, 107, 107, 0.3);
+        }
+        button:disabled {
             opacity: 0.5;
             cursor: not-allowed;
         }
-        .btn-secondary {
+        .btn-reset {
             background: #f0f0f0;
             color: #333;
         }
-        .btn-secondary:hover {
+        .btn-reset:hover {
             background: #e0e0e0;
         }
         .status {
@@ -99,6 +127,7 @@
             border-radius: 6px;
             margin-top: 15px;
             font-size: 13px;
+            text-align: center;
             display: none;
         }
         .status.success {
@@ -109,11 +138,6 @@
         .status.error {
             background: #ffebee;
             color: #c62828;
-            display: block;
-        }
-        .status.info {
-            background: #e3f2fd;
-            color: #1565c0;
             display: block;
         }
         .progress {
@@ -129,104 +153,133 @@
         }
         .progress-fill {
             height: 100%;
-            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(90deg, #9e2a2b 0%, #c93a3b 100%);
             width: 0%;
             transition: width 0.3s;
         }
-        .info-text {
+        .divider {
+            border-top: 2px solid #e0e0e0;
+            margin: 25px 0;
+            position: relative;
+        }
+        .divider span {
+            position: absolute;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            padding: 0 10px;
+            color: #999;
             font-size: 12px;
-            color: #666;
-            margin-top: 5px;
-        }
-        .preview-container {
-            background: #f8f9fa;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            padding: 15px;
-            text-align: center;
-        }
-        #previewCanvas {
-            max-width: 100%;
-            height: auto;
-            border-radius: 6px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        }
-        .info-box {
-            padding: 15px;
-            background: #fff3cd;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            font-size: 12px;
-            color: #856404;
-            line-height: 1.6;
-        }
-        @media (max-width: 1024px) {
-            .wrapper {
-                grid-template-columns: 1fr;
-            }
+            font-weight: 600;
         }
     </style>
 </head>
 <body>
 
-<div class="wrapper">
-    <!-- PANNELLO SINISTRA: CONTROLLI -->
-    <div class="panel">
-        <h2>🎫 Generatore Pass PDF</h2>
+<div class="container">
+    <h1>🎫 Generatore Pass PDF</h1>
+    <p class="subtitle">US Cremonese • Parcheggi 2025-26</p>
 
-        <div class="info-box">
-            <strong>📋 Istruzioni:</strong><br>
-            1. Carica immagine JPEG template<br>
-            2. Carica Excel (Foglio "Lista" | ColA=Nome | ColC=Pass)<br>
-            3. Modifica partita/data se necessario<br>
-            4. Genera tutti i PDF
-        </div>
-
-        <div class="form-group">
-            <label>📷 Immagine Template (JPEG)</label>
-            <input type="file" id="bgImage" accept="image/jpeg" required>
-            <div class="info-text">SerieA_Pass auto_RETRO CURVA SUD (JPEG)</div>
-        </div>
-
-        <div class="form-group">
-            <label>📊 File Excel</label>
-            <input type="file" id="excelFile" accept=".xlsx" required>
-            <div class="info-text">Parcheggi 2526.xlsx - Foglio "Lista"</div>
-        </div>
-
-        <div class="form-group">
-            <label>🎯 Partita</label>
-            <input type="text" id="partita" placeholder="Cremonese-AVVERSARIO" value="Cremonese-Verona">
-        </div>
-
-        <div class="form-group">
-            <label>📅 Data</label>
-            <input type="text" id="dataPartita" placeholder="MM/DD/YYYY"" value="date">
-        </div>
-
-        <div class="button-group">
-            <button class="btn-generate" id="generateBtn">⚡ Genera Tutti i PDF</button>
-            <button class="btn-secondary" onclick="resetForm()">🔄 Ripristina</button>
-        </div>
-
-        <div id="status" class="status"></div>
-
-        <div class="progress" id="progress">
-            <div class="progress-bar">
-                <div class="progress-fill" id="progressFill"></div>
-            </div>
-            <div id="statusInfo" class="info-text" style="margin-top: 10px;"></div>
-        </div>
+    <div class="next-match" id="nextMatch">
+        <strong>🏟️ Prossima partita in casa</strong>
+        <div id="matchInfo">Cremonese-Verona<br>19/01/2026 ore 18:30</div>
     </div>
 
-  
+    <div class="form-group">
+        <label>📷 Immagine JPEG</label>
+        <input type="file" id="bgImage" accept="image/jpeg" required>
+    </div>
+
+    <div class="form-group">
+        <label>📊 File Excel</label>
+        <input type="file" id="excelFile" accept=".xlsx" required>
+        <div class="info-text">Foglio "Lista" | ColA=Nome | ColC=Pass</div>
+    </div>
+
+    <div class="form-group">
+        <label>🎯 Partita</label>
+        <input type="text" id="partita" value="Cremonese-Verona">
+    </div>
+
+    <div class="form-group">
+        <label>📅 Data</label>
+        <input type="text" id="dataPartita" value="19/01/2026">
+    </div>
+
+    <button class="btn-generate-all" id="generateAllBtn">⚡ Genera Tutti i Pass</button>
+
+    <div class="divider"><span>OPPURE</span></div>
+
+    <div class="form-group">
+        <label>🔍 Genera Pass Singolo</label>
+        <input type="text" id="singlePass" placeholder="Inserisci nome azienda o numero pass">
+        <div class="info-text">Es: "ILFER" oppure "01"</div>
+    </div>
+
+    <button class="btn-generate-single" id="generateSingleBtn">📄 Genera Pass Singolo</button>
+
+    <button class="btn-reset" onclick="resetForm()">🔄 Ripristina</button>
+
+    <div id="status" class="status"></div>
+
+    <div class="progress" id="progress">
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+        <div id="statusInfo" class="info-text" style="margin-top: 10px; text-align: center;"></div>
+    </div>
+</div>
 
 <script>
     const { PDFDocument, StandardFonts, rgb } = PDFLib;
 
     let imageBytes = null;
     let parcheggiData = [];
-    let bgImage = null;
+
+    // CALENDARIO PARTITE IN CASA
+    const homeMatches = [
+        { opponent: "Verona", date: "19/01/2026", time: "18:30" },
+        { opponent: "Inter", date: "01/02/2026", time: "15:00" },
+        { opponent: "Genoa", date: "15/02/2026", time: "15:00" },
+        { opponent: "Milan", date: "01/03/2026", time: "15:00" },
+        { opponent: "Fiorentina", date: "15/03/2026", time: "15:00" },
+        { opponent: "Bologna", date: "04/04/2026", time: "15:00" },
+        { opponent: "Torino", date: "19/04/2026", time: "15:00" },
+        { opponent: "Lazio", date: "03/05/2026", time: "15:00" },
+        { opponent: "Pisa", date: "10/05/2026", time: "15:00" },
+        { opponent: "Como", date: "25/05/2026", time: "15:00" }
+    ];
+
+    // TROVA PROSSIMA PARTITA
+    function getNextMatch() {
+        const today = new Date('2026-01-15'); // Data attuale simulata
+        
+        for (let match of homeMatches) {
+            const matchDate = parseItalianDate(match.date);
+            if (matchDate >= today) {
+                return match;
+            }
+        }
+        return homeMatches[homeMatches.length - 1]; // Ultima partita se tutto è passato
+    }
+
+    function parseItalianDate(dateStr) {
+        const [day, month, year] = dateStr.split('/');
+        return new Date(year, month - 1, day);
+    }
+
+    // AGGIORNA PROSSIMA PARTITA
+    function updateNextMatch() {
+        const next = getNextMatch();
+        document.getElementById('matchInfo').innerHTML = 
+            `Cremonese-${next.opponent}<br>${next.date} ore ${next.time}`;
+        document.getElementById('partita').value = `Cremonese-${next.opponent}`;
+        document.getElementById('dataPartita').value = next.date;
+    }
+
+    // Inizializza prossima partita
+    updateNextMatch();
 
     function showStatus(msg, type) {
         const s = document.getElementById('status');
@@ -235,23 +288,15 @@
         s.style.display = 'block';
     }
 
-    // CARICA BACKGROUND
     document.getElementById('bgImage').addEventListener('change', e => {
         const reader = new FileReader();
         reader.onload = ev => {
             imageBytes = ev.target.result;
-            const img = new Image();
-            img.onload = () => {
-                bgImage = img;
-                updatePreview();
-                showStatus('✅ Immagine caricata correttamente', 'success');
-            };
-            img.src = URL.createObjectURL(new Blob([ev.target.result]));
+            showStatus('✅ Immagine caricata', 'success');
         };
         reader.readAsArrayBuffer(e.target.files[0]);
     });
 
-    // CARICA EXCEL
     document.getElementById('excelFile').addEventListener('change', e => {
         const reader = new FileReader();
         reader.onload = ev => {
@@ -259,7 +304,7 @@
                 const wb = XLSX.read(new Uint8Array(ev.target.result), { type: 'array' });
                 const sheet = wb.Sheets['Lista'];
                 if (!sheet) {
-                    showStatus('❌ Foglio "Lista" non trovato nell\'Excel', 'error');
+                    showStatus('❌ Foglio "Lista" non trovato', 'error');
                     return;
                 }
                 const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
@@ -271,40 +316,152 @@
                     }));
                 
                 if (parcheggiData.length === 0) {
-                    showStatus('❌ Nessun dato valido trovato nell\'Excel', 'error');
+                    showStatus('❌ Nessun dato valido', 'error');
                     return;
                 }
                 
-                showStatus(`✅ ${parcheggiData.length} sponsor caricati correttamente`, 'success');
-                updatePreview();
+                showStatus(`✅ ${parcheggiData.length} sponsor caricati`, 'success');
             } catch (err) {
-                showStatus('❌ Errore nella lettura dell\'Excel: ' + err.message, 'error');
+                showStatus('❌ Errore Excel: ' + err.message, 'error');
             }
         };
         reader.readAsArrayBuffer(e.target.files[0]);
     });
 
-    // GENERA PDF
-    document.getElementById('generateBtn').addEventListener('click', async () => {
-        if (!imageBytes) {
-            showStatus('❌ Carica prima l\'immagine template', 'error');
-            return;
-        }
-        
-        if (parcheggiData.length === 0) {
-            showStatus('❌ Carica prima il file Excel', 'error');
-            return;
-        }
-
+    // GENERA SINGOLO PDF
+    async function generateSinglePDF(azienda, numero) {
         const partita = document.getElementById('partita').value.trim();
         const dataPartita = document.getElementById('dataPartita').value.trim();
 
         if (!partita || !dataPartita) {
             showStatus('❌ Compila partita e data', 'error');
+            return false;
+        }
+
+        const pdfDoc = await PDFDocument.create();
+        const jpg = await pdfDoc.embedJpg(imageBytes);
+
+        const page = pdfDoc.addPage([jpg.width, jpg.height]);
+        page.drawImage(jpg, { x: 0, y: 0, width: jpg.width, height: jpg.height });
+
+        const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+        // GARA
+        page.drawText(partita, {
+            x: 110,
+            y: jpg.height - 180,
+            size: 100,
+            font: boldFont,
+            color: rgb(0, 0, 0)
+        });
+
+        // DATA
+        page.drawText(dataPartita, {
+            x: 110,
+            y: jpg.height - 225,
+            size: 100,
+            font: boldFont,
+            color: rgb(0, 0, 0)
+        });
+
+        // PASS
+        page.drawText(numero, {
+            x: 385,
+            y: jpg.height - 225,
+            size: 100,
+            font: boldFont,
+            color: rgb(0, 0, 0)
+        });
+
+        // NOME
+        page.drawText(azienda, {
+            x: 165,
+            y: jpg.height - 265,
+            size: 100,
+            font: boldFont,
+            color: rgb(0, 0, 0)
+        });
+
+        const out = await pdfDoc.save();
+        const blob = new Blob([out], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Pass_${numero}_${azienda}.pdf`;
+        a.click();
+
+        URL.revokeObjectURL(url);
+        return true;
+    }
+
+    // GENERA PASS SINGOLO
+    document.getElementById('generateSingleBtn').addEventListener('click', async () => {
+        if (!imageBytes) {
+            showStatus('❌ Carica l\'immagine', 'error');
             return;
         }
 
-        document.getElementById('generateBtn').disabled = true;
+        const search = document.getElementById('singlePass').value.trim();
+        if (!search) {
+            showStatus('❌ Inserisci nome o numero pass', 'error');
+            return;
+        }
+
+        document.getElementById('generateSingleBtn').disabled = true;
+
+        try {
+            // Cerca per numero o nome
+            let found = parcheggiData.find(p => 
+                p.numero.toLowerCase() === search.toLowerCase() || 
+                p.azienda.toLowerCase().includes(search.toLowerCase())
+            );
+
+            let azienda, numero;
+
+            if (found) {
+                // Trovato nell'Excel
+                azienda = found.azienda;
+                numero = found.numero;
+            } else {
+                // Crea nuovo pass
+                if (/^\d+$/.test(search)) {
+                    // È un numero
+                    numero = search.padStart(2, '0');
+                    azienda = 'NUOVO PASS';
+                } else {
+                    // È un nome
+                    azienda = search.toUpperCase();
+                    // Genera numero progressivo
+                    const maxNum = Math.max(...parcheggiData.map(p => parseInt(p.numero) || 0));
+                    numero = String(maxNum + 1).padStart(2, '0');
+                }
+            }
+
+            const success = await generateSinglePDF(azienda, numero);
+            if (success) {
+                showStatus(`✅ Pass generato: ${numero} - ${azienda}`, 'success');
+            }
+        } catch (error) {
+            showStatus('❌ Errore: ' + error.message, 'error');
+        } finally {
+            document.getElementById('generateSingleBtn').disabled = false;
+        }
+    });
+
+    // GENERA TUTTI I PASS
+    document.getElementById('generateAllBtn').addEventListener('click', async () => {
+        if (!imageBytes) {
+            showStatus('❌ Carica l\'immagine', 'error');
+            return;
+        }
+        
+        if (parcheggiData.length === 0) {
+            showStatus('❌ Carica l\'Excel', 'error');
+            return;
+        }
+
+        document.getElementById('generateAllBtn').disabled = true;
         const progress = document.getElementById('progress');
         const progressFill = document.getElementById('progressFill');
         const statusInfo = document.getElementById('statusInfo');
@@ -315,108 +472,35 @@
         try {
             for (let i = 0; i < parcheggiData.length; i++) {
                 const p = parcheggiData[i];
-
-                const pdfDoc = await PDFDocument.create();
-                const jpg = await pdfDoc.embedJpg(imageBytes);
-
-                const page = pdfDoc.addPage([jpg.width, jpg.height]);
-                page.drawImage(jpg, { x: 0, y: 0, width: jpg.width, height: jpg.height });
-
-                const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-
-                // GARA (x: 320, y: dall'alto 1695)
-                page.drawText(partita, {
-                    x: 110,
-                    y: jpg.height - 180,
-                    size: 100,
-                    font: boldFont,
-                    color: rgb(0, 0, 0)
-                });
-
-                // DATA (x: 92, y: dall'alto 1540)
-                page.drawText(dataPartita, {
-                    x: 110,
-                    y: jpg.height - 225,
-                    size: 100,
-                    font: boldFont,
-                    color: rgb(0, 0, 0)
-                });
-
-                // PASS (x: 602, y: dall'alto 1540)
-                page.drawText(p.numero, {
-                    x: 385,
-                    y: jpg.height - 225,
-                    size: 100,
-                    font: boldFont,
-                    color: rgb(0, 0, 0)
-                });
-
-                // NOME (x: 320, y: dall'alto 1360)
-                page.drawText(p.azienda, {
-                    x: 165,
-                    y: jpg.height - 265,
-                    size: 100,
-                    font: boldFont,
-                    color: rgb(0, 0, 0)
-                });
-
-                const out = await pdfDoc.save();
-                const blob = new Blob([out], { type: 'application/pdf' });
-                const url = URL.createObjectURL(blob);
-
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `Pass_${p.numero}_${p.azienda}.pdf`;
-                a.click();
-
-                URL.revokeObjectURL(url);
+                await generateSinglePDF(p.azienda, p.numero);
 
                 const percent = ((i + 1) / parcheggiData.length) * 100;
                 progressFill.style.width = percent + '%';
-                statusInfo.textContent = `${i + 1} / ${parcheggiData.length} PDF generati... (${Math.round(percent)}%)`;
+                statusInfo.textContent = `${i + 1} / ${parcheggiData.length} PDF (${Math.round(percent)}%)`;
 
                 await new Promise(r => setTimeout(r, 100));
             }
 
-            showStatus(`✅ ${parcheggiData.length} PDF generati con successo!`, 'success');
+            showStatus(`✅ ${parcheggiData.length} PDF generati!`, 'success');
             progress.style.display = 'none';
         } catch (error) {
-            showStatus('❌ Errore durante la generazione: ' + error.message, 'error');
-            console.error(error);
+            showStatus('❌ Errore: ' + error.message, 'error');
         } finally {
-            document.getElementById('generateBtn').disabled = false;
+            document.getElementById('generateAllBtn').disabled = false;
         }
     });
 
     function resetForm() {
         document.getElementById('bgImage').value = '';
         document.getElementById('excelFile').value = '';
-        document.getElementById('partita').value = 'Cremonese-Verona';
-        document.getElementById('dataPartita').value = '19/01/2026';
-        bgImage = null;
+        document.getElementById('singlePass').value = '';
+        updateNextMatch();
         imageBytes = null;
         parcheggiData = [];
-        const canvas = document.getElementById('previewCanvas');
-        const ctx = canvas.getContext('2d');
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        canvas.width = 0;
-        canvas.height = 0;
         document.getElementById('status').style.display = 'none';
         document.getElementById('progress').style.display = 'none';
-        showStatus('🔄 Form ripristinato', 'info');
     }
 </script>
 
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
