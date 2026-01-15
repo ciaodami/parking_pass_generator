@@ -69,10 +69,10 @@ export default function PassGenerator() {
   // The y value represents distance from BOTTOM of image
   // Adjusted based on reference image - text appears right after ">" arrows
   const [coords] = useState<Coordinates>({
-    gara: { x: 160, y: 1540 },    // After "GARA>" - near top
-    data: { x: 145, y: 1440 },    // After "DATA>" - below GARA
-    pass: { x: 540, y: 1440 },    // After "N. PASS>" - same row as DATA
-    nome: { x: 285, y: 1340 }     // After "NOMINATIVO>" - below DATA
+    gara: { x: 190, y: 2990 },    // After "GARA>" - near top
+    data: { x: 190, y: 2910 },    // After "DATA>" - below GARA
+    pass: { x: 666, y: 2910 },    // After "N. PASS>" - same row as DATA
+    nome: { x: 285, y: 2830 }     // After "NOMINATIVO>" - below DATA
   });
 
   // Initialize with next match
@@ -547,3 +547,4 @@ export default function PassGenerator() {
     </div>
   );
 }
+
