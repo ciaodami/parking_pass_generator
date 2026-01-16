@@ -187,36 +187,6 @@
     </div>
 
     <div class="form-group">
-        <label>
-            <input type="checkbox" id="calibrationMode" style="width: auto; margin-right: 8px;">
-            🎯 Modalità Calibrazione Coordinate
-        </label>
-        <div class="info-text">Attiva per trovare le coordinate esatte cliccando sull'immagine</div>
-    </div>
-
-    <div id="calibrationPanel" style="display: none; background: #fff3cd; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-        <strong style="color: #856404;">📍 Calibrazione Attiva</strong>
-        <div style="margin-top: 10px; font-size: 12px; color: #856404;">
-            Clicca sull'anteprima per vedere le coordinate.<br>
-            Le coordinate verranno copiate automaticamente.
-        </div>
-        <div id="coordDisplay" style="margin-top: 10px; padding: 10px; background: white; border-radius: 4px; font-family: monospace; font-size: 13px; color: #333;">
-            Clicca sull'immagine per vedere le coordinate...
-        </div>
-    </div>
-
-    <div id="previewSection" style="display: none; margin-bottom: 20px;">
-        <label style="margin-bottom: 10px;">👁️ Anteprima</label>
-        <div style="background: #f8f9fa; border: 2px solid #e0e0e0; border-radius: 8px; padding: 15px; position: relative; cursor: crosshair;" id="canvasContainer">
-            <canvas id="previewCanvas" style="max-width: 100%; height: auto; display: block;"></canvas>
-            <div id="crosshair" style="display: none; position: absolute; pointer-events: none;">
-                <div style="position: absolute; width: 100%; height: 1px; background: red; top: 0; left: 0;"></div>
-                <div style="position: absolute; width: 1px; height: 100%; background: red; top: 0; left: 0;"></div>
-            </div>
-        </div>
-    </div>
-
-    <div class="form-group">
         <label>📷 Immagine JPEG</label>
         <input type="file" id="bgImage" accept="image/jpeg" required>
     </div>
@@ -242,9 +212,11 @@
     <div class="divider"><span>OPPURE</span></div>
 
     <div class="form-group">
-        <label>🔍 Genera Pass Singolo</label>
-        <input type="text" id="singlePass" placeholder="Inserisci nome azienda o numero pass">
-        <div class="info-text">Es: "ILFER" oppure "01"</div>
+        <label>🔍 Genera Pass Singolo (senza Excel)</label>
+        <input type="text" id="singleAzienda" placeholder="Nome Azienda (es: ILFER)">
+        <div style="height: 10px;"></div>
+        <input type="text" id="singleNumero" placeholder="Numero Pass (es: 01)">
+        <div class="info-text">Genera un pass personalizzato senza bisogno dell'Excel</div>
     </div>
 
     <button class="btn-generate-single" id="generateSingleBtn">📄 Genera Pass Singolo</button>
@@ -266,120 +238,257 @@
 
     let imageBytes = null;
     let parcheggiData = [];
-    let bgImage = null;
-    let canvasScale = 1;
 
-    // COORDINATE ATTUALI (modificabili)
-    let coords = {
-        gara: { x: 195, y: 1312 },
-        data: { x: 170, y: 1215 },
-        pass: { x: 755, y: 1215 },
-        nome: { x: 284, y: 1118 }
- const coords = {
-    gara: { x: 195, y: 1312 },    // Dopo "GARA"
-    data: { x: 170, y: 1215 },    // Dopo "DATA"
-    pass: { x: 755, y: 1215 },    // Dopo "N. PASS"
-    nome: { x: 284, y: 1118 }     // Dopo "NOMINATIVO"
+    // ⚠️ COORDINATE CORRETTE
+    const coords = {
+        gara: { x: 195, y: 1312 },    // Dopo "GARA"
+        data: { x: 170, y: 1215 },    // Dopo "DATA"
+        pass: { x: 755, y: 1215 },    // Dopo "N. PASS"
+        nome: { x: 284, y: 1118 }     // Dopo "NOMINATIVO"
     };
 
     // CALENDARIO PARTITE IN CASA
-@@ -376,59 +376,7 @@
-        ctx.fillText(primoSponsor, coords.nome.x * canvasScale, (bgImage.height - coords.nome.y) * canvasScale);
+    const homeMatches = [
+        { opponent: "Verona", date: "19/01/2026", time: "18:30" },
+        { opponent: "Inter", date: "01/02/2026", time: "15:00" },
+        { opponent: "Genoa", date: "15/02/2026", time: "15:00" },
+        { opponent: "Milan", date: "01/03/2026", time: "15:00" },
+        { opponent: "Fiorentina", date: "15/03/2026", time: "15:00" },
+        { opponent: "Bologna", date: "04/04/2026", time: "15:00" },
+        { opponent: "Torino", date: "19/04/2026", time: "15:00" },
+        { opponent: "Lazio", date: "03/05/2026", time: "15:00" },
+        { opponent: "Pisa", date: "10/05/2026", time: "15:00" },
+        { opponent: "Como", date: "25/05/2026", time: "15:00" }
+    ];
+
+    // TROVA PROSSIMA PARTITA
+    function getNextMatch() {
+        const today = new Date();
+        
+        for (let match of homeMatches) {
+            const matchDate = parseItalianDate(match.date);
+            if (matchDate >= today) {
+                return match;
+            }
+        }
+        return homeMatches[homeMatches.length - 1];
     }
 
-    // MODALITÀ CALIBRAZIONE
-    document.getElementById('calibrationMode').addEventListener('change', (e) => {
-        const panel = document.getElementById('calibrationPanel');
-        panel.style.display = e.target.checked ? 'block' : 'none';
-        
-        if (e.target.checked && !bgImage) {
-            showStatus('⚠️ Carica prima un\'immagine per calibrare', 'error');
-            e.target.checked = false;
-            panel.style.display = 'none';
+    function parseItalianDate(dateStr) {
+        const [day, month, year] = dateStr.split('/');
+        return new Date(year, month - 1, day);
+    }
+
+    // AGGIORNA PROSSIMA PARTITA
+    function updateNextMatch() {
+        const next = getNextMatch();
+        document.getElementById('matchInfo').innerHTML = 
+            `Cremonese-${next.opponent}<br>${next.date} ore ${next.time}`;
+        document.getElementById('partita').value = `Cremonese-${next.opponent}`;
+        document.getElementById('dataPartita').value = next.date;
+    }
+
+    updateNextMatch();
+
+    function showStatus(msg, type) {
+        const s = document.getElementById('status');
+        s.className = 'status ' + type;
+        s.textContent = msg;
+        s.style.display = 'block';
+    }
+
+    document.getElementById('bgImage').addEventListener('change', e => {
+        const reader = new FileReader();
+        reader.onload = ev => {
+            imageBytes = ev.target.result;
+            showStatus('✅ Immagine caricata', 'success');
+        };
+        reader.readAsArrayBuffer(e.target.files[0]);
+    });
+
+    document.getElementById('excelFile').addEventListener('change', e => {
+        const reader = new FileReader();
+        reader.onload = ev => {
+            try {
+                const wb = XLSX.read(new Uint8Array(ev.target.result), { type: 'array' });
+                const sheet = wb.Sheets['Lista'];
+                if (!sheet) {
+                    showStatus('❌ Foglio "Lista" non trovato', 'error');
+                    return;
+                }
+                const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                parcheggiData = rows
+                    .filter(r => r[0] && r[2])
+                    .map(r => ({
+                        azienda: String(r[0]).trim(),
+                        numero: String(r[2]).trim()
+                    }));
+                
+                if (parcheggiData.length === 0) {
+                    showStatus('❌ Nessun dato valido', 'error');
+                    return;
+                }
+                
+                showStatus(`✅ ${parcheggiData.length} sponsor caricati`, 'success');
+            } catch (err) {
+                showStatus('❌ Errore Excel: ' + err.message, 'error');
+            }
+        };
+        reader.readAsArrayBuffer(e.target.files[0]);
+    });
+
+    // GENERA SINGOLO PDF
+    async function generateSinglePDF(azienda, numero) {
+        const partita = document.getElementById('partita').value.trim();
+        const dataPartita = document.getElementById('dataPartita').value.trim();
+
+        if (!partita || !dataPartita) {
+            showStatus('❌ Compila partita e data', 'error');
+            return false;
         }
-    });
 
-    // CLICK SU CANVAS PER COORDINATE
-    document.getElementById('previewCanvas').addEventListener('click', (e) => {
-        if (!document.getElementById('calibrationMode').checked) return;
+        const pdfDoc = await PDFDocument.create();
+        const jpg = await pdfDoc.embedJpg(imageBytes);
 
-        const canvas = document.getElementById('previewCanvas');
-        const rect = canvas.getBoundingClientRect();
-        
-        // Coordinate relative al canvas
-        const canvasX = e.clientX - rect.left;
-        const canvasY = e.clientY - rect.top;
+        const page = pdfDoc.addPage([jpg.width, jpg.height]);
+        page.drawImage(jpg, { x: 0, y: 0, width: jpg.width, height: jpg.height });
 
-        // Converti in coordinate PDF (origine in basso a sinistra)
-        const pdfX = Math.round(canvasX / canvasScale);
-        const pdfY = Math.round((canvas.height - canvasY) / canvasScale);
+        const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
-        // Mostra coordinate
-        const coordDisplay = document.getElementById('coordDisplay');
-        coordDisplay.innerHTML = `
-            <strong style="color: #9e2a2b;">📍 Coordinate PDF:</strong><br>
-            <strong>X: ${pdfX}</strong> | <strong>Y: ${pdfY}</strong><br>
-            <div style="margin-top: 8px; padding: 8px; background: #f0f0f0; border-radius: 4px; font-size: 11px;">
-                <strong>Codice da copiare:</strong><br>
-                x: ${pdfX}, y: jpg.height - ${bgImage.height - pdfY}
-            </div>
-        `;
-
-        // Copia coordinate negli appunti
-        const coordText = `x: ${pdfX}, y: jpg.height - ${bgImage.height - pdfY}`;
-        navigator.clipboard.writeText(coordText).then(() => {
-            showStatus('📋 Coordinate copiate negli appunti!', 'success');
-            setTimeout(() => {
-                document.getElementById('status').style.display = 'none';
-            }, 2000);
-        });
-
-        // Mostra crosshair
-        const crosshair = document.getElementById('crosshair');
-        crosshair.style.display = 'block';
-        crosshair.style.left = canvasX + 'px';
-        crosshair.style.top = canvasY + 'px';
-    });
-
-    // Aggiorna anteprima quando cambiano i campi
-    document.getElementById('partita').addEventListener('input', showPreview);
-@@ -486,35 +434,35 @@
-
-        // GARA
+                // GARA
         page.drawText(partita, {
-            x: 160,
-            y: jpg.height - 1540,
-            size: 100,
+            x: coords.gara.x,
+            y: jpg.height - coords.gara.y,
+            size: 90,
             font: boldFont,
             color: rgb(0, 0, 0)
         });
 
         // DATA
         page.drawText(dataPartita, {
-            x: 145,
-            y: jpg.height - 1440,
-            size: 100,
+            x: coords.data.x,
+            y: jpg.height - coords.data.y,
+            size: 90,
             font: boldFont,
             color: rgb(0, 0, 0)
         });
 
         // PASS
         page.drawText(numero, {
-            x: 540,
-            y: jpg.height - 1440,
-            size: 100,
+            x: coords.pass.x,
+            y: jpg.height - coords.pass.y,
+            size: 90,
             font: boldFont,
             color: rgb(0, 0, 0)
         });
 
         // NOME
         page.drawText(azienda, {
-            x: 285,
-            y: jpg.height - 1118,
-            size: 100,
+            x: coords.nome.x,
+            y: jpg.height - coords.nome.y,
+            size: 90,
             font: boldFont,
             color: rgb(0, 0, 0)
-@@ -642,3 +590,4 @@
+        });
+
+        const out = await pdfDoc.save();
+        const blob = new Blob([out], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Pass_${numero}_${azienda}.pdf`;
+        a.click();
+
+        URL.revokeObjectURL(url);
+        return true;
+    }
+
+    // GENERA PASS SINGOLO
+    document.getElementById('generateSingleBtn').addEventListener('click', async () => {
+        if (!imageBytes) {
+            showStatus('❌ Carica l\'immagine', 'error');
+            return;
+        }
+
+        const inputAzienda = document.getElementById('singleAzienda').value.trim();
+        const inputNumero = document.getElementById('singleNumero').value.trim();
+
+        if (!inputAzienda || !inputNumero) {
+            showStatus('❌ Inserisci sia azienda che numero pass', 'error');
+            return;
+        }
+
+        document.getElementById('generateSingleBtn').disabled = true;
+
+        try {
+            const azienda = inputAzienda.toUpperCase();
+            const numero = inputNumero.padStart(2, '0');
+
+            const success = await generateSinglePDF(azienda, numero);
+            if (success) {
+                showStatus(`✅ Pass generato: ${numero} - ${azienda}`, 'success');
+            }
+        } catch (error) {
+            showStatus('❌ Errore: ' + error.message, 'error');
+        } finally {
+            document.getElementById('generateSingleBtn').disabled = false;
+        }
+    });
+
+    // GENERA TUTTI I PASS
+    document.getElementById('generateAllBtn').addEventListener('click', async () => {
+        if (!imageBytes) {
+            showStatus('❌ Carica l\'immagine', 'error');
+            return;
+        }
+        
+        if (parcheggiData.length === 0) {
+            showStatus('❌ Carica l\'Excel', 'error');
+            return;
+        }
+
+        document.getElementById('generateAllBtn').disabled = true;
+        const progress = document.getElementById('progress');
+        const progressFill = document.getElementById('progressFill');
+        const statusInfo = document.getElementById('statusInfo');
+
+        progress.style.display = 'block';
+        document.getElementById('status').style.display = 'none';
+
+        try {
+            for (let i = 0; i < parcheggiData.length; i++) {
+                const p = parcheggiData[i];
+                await generateSinglePDF(p.azienda, p.numero);
+
+                const percent = ((i + 1) / parcheggiData.length) * 100;
+                progressFill.style.width = percent + '%';
+                statusInfo.textContent = `${i + 1} / ${parcheggiData.length} PDF (${Math.round(percent)}%)`;
+
+                await new Promise(r => setTimeout(r, 100));
+            }
+
+            showStatus(`✅ ${parcheggiData.length} PDF generati!`, 'success');
+            progress.style.display = 'none';
+        } catch (error) {
+            showStatus('❌ Errore: ' + error.message, 'error');
+        } finally {
+            document.getElementById('generateAllBtn').disabled = false;
+        }
+    });
+
+    function resetForm() {
+        document.getElementById('bgImage').value = '';
+        document.getElementById('excelFile').value = '';
+        document.getElementById('singleAzienda').value = '';
+        document.getElementById('singleNumero').value = '';
+        updateNextMatch();
+        imageBytes = null;
+        parcheggiData = [];
+        document.getElementById('status').style.display = 'none';
+        document.getElementById('progress').style.display = 'none';
+    }
+</script>
 
 </body>
 </html>
